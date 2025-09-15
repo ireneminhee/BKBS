@@ -27,26 +27,26 @@ openai.api_key = os.getenv("OPENAI_API_KEY", "YOUR_API_KEY_HERE")
 # 캐시 파일 경로
 CACHE_FILE = "summary_cache.pkl"
 
-def load_summary_cache():
-    """캐시 파일에서 요약 캐시를 불러옵니다."""
-    try:
-        if os.path.exists(CACHE_FILE):
-            with open(CACHE_FILE, 'rb') as f:
-                cache = pickle.load(f)
-                print(f"캐시 로드 완료: {len(cache)}개 요약")
-                return cache
-    except Exception as e:
-        print(f"캐시 로드 실패: {e}")
-    return {}
+# def load_summary_cache():
+#     """캐시 파일에서 요약 캐시를 불러옵니다."""
+#     try:
+#         if os.path.exists(CACHE_FILE):
+#             with open(CACHE_FILE, 'rb') as f:
+#                 cache = pickle.load(f)
+#                 print(f"캐시 로드 완료: {len(cache)}개 요약")
+#                 return cache
+#     except Exception as e:
+#         print(f"캐시 로드 실패: {e}")
+#     return {}
 
-def save_summary_cache(cache):
-    """요약 캐시를 파일에 저장합니다."""
-    try:
-        with open(CACHE_FILE, 'wb') as f:
-            pickle.dump(cache, f)
-            print(f"캐시 저장 완료: {len(cache)}개 요약")
-    except Exception as e:
-        print(f"캐시 저장 실패: {e}")
+# def save_summary_cache(cache):
+#     """요약 캐시를 파일에 저장합니다."""
+#     try:
+#         with open(CACHE_FILE, 'wb') as f:
+#             pickle.dump(cache, f)
+#             print(f"캐시 저장 완료: {len(cache)}개 요약")
+#     except Exception as e:
+#         print(f"캐시 저장 실패: {e}")
 
 # Streamlit 앱 실행
 def run_streamlit():
@@ -90,60 +90,60 @@ def safe_literal_eval(value):
 
 
 
-# def get_title_embeddings(articles_data, word2vec_model):
-#     title_embeddings = []
-#     for article in articles_data:
-#         title = article['title']
-#         words = title.split()  # 제목을 공백 기준으로 단어 분리
-#         title_vector = []
-
-#         for word in words:
-#             if word in word2vec_model.wv:
-#                 title_vector.append(word2vec_model.wv[word])
-
-#         # 제목에 대한 벡터가 있으면 평균 벡터를 반환
-#         if title_vector:
-#             title_embeddings.append(np.mean(title_vector, axis=0))
-#         else:
-#             title_embeddings.append(np.zeros(word2vec_model.vector_size))  # 벡터가 없으면 0 벡터 반환
-
-#     return title_embeddings
-
-
-def get_summary_embeddings(articles_data, word2vec_model, summary_cache=None):
-    """
-    기사 요약을 기반으로 임베딩을 생성하는 함수
-    summary_cache: 기사 ID를 키로 하고 요약을 값으로 하는 딕셔너리 (캐싱용)
-    """
-    summary_embeddings = []
-    if summary_cache is None:
-        summary_cache = {}
-    
+def get_title_embeddings(articles_data, word2vec_model):
+    title_embeddings = []
     for article in articles_data:
-        article_id = article['id']
-        
-        # 캐시에서 요약을 찾거나 새로 생성
-        if article_id in summary_cache:
-            summary = summary_cache[article_id]
-        else:
-            summary = get_summary(article['text'])
-            summary_cache[article_id] = summary
-        
-        # 요약 텍스트를 단어로 분리
-        words = summary.split()
-        summary_vector = []
+        title = article['title']
+        words = title.split()  # 제목을 공백 기준으로 단어 분리
+        title_vector = []
 
         for word in words:
             if word in word2vec_model.wv:
-                summary_vector.append(word2vec_model.wv[word])
+                title_vector.append(word2vec_model.wv[word])
 
-        # 요약에 대한 벡터가 있으면 평균 벡터를 반환
-        if summary_vector:
-            summary_embeddings.append(np.mean(summary_vector, axis=0))
+        # 제목에 대한 벡터가 있으면 평균 벡터를 반환
+        if title_vector:
+            title_embeddings.append(np.mean(title_vector, axis=0))
         else:
-            summary_embeddings.append(np.zeros(word2vec_model.vector_size))  # 벡터가 없으면 0 벡터 반환
+            title_embeddings.append(np.zeros(word2vec_model.vector_size))  # 벡터가 없으면 0 벡터 반환
 
-    return summary_embeddings, summary_cache
+    return title_embeddings
+
+
+# def get_summary_embeddings(articles_data, word2vec_model, summary_cache=None):
+#     """
+#     기사 요약을 기반으로 임베딩을 생성하는 함수
+#     summary_cache: 기사 ID를 키로 하고 요약을 값으로 하는 딕셔너리 (캐싱용)
+#     """
+#     summary_embeddings = []
+#     if summary_cache is None:
+#         summary_cache = {}
+    
+#     for article in articles_data:
+#         article_id = article['id']
+        
+#         # 캐시에서 요약을 찾거나 새로 생성
+#         if article_id in summary_cache:
+#             summary = summary_cache[article_id]
+#         else:
+#             summary = get_summary(article['text'])
+#             summary_cache[article_id] = summary
+        
+#         # 요약 텍스트를 단어로 분리
+#         words = summary.split()
+#         summary_vector = []
+
+#         for word in words:
+#             if word in word2vec_model.wv:
+#                 summary_vector.append(word2vec_model.wv[word])
+
+#         # 요약에 대한 벡터가 있으면 평균 벡터를 반환
+#         if summary_vector:
+#             summary_embeddings.append(np.mean(summary_vector, axis=0))
+#         else:
+#             summary_embeddings.append(np.zeros(word2vec_model.vector_size))  # 벡터가 없으면 0 벡터 반환
+
+#     return summary_embeddings, summary_cache
 
 
 # def get_recommendations(clicked_article_id, articles, word2vec_model):
@@ -181,37 +181,29 @@ def get_summary_embeddings(articles_data, word2vec_model, summary_cache=None):
 #     return valid_articles[:5]
 
 
-def get_summary_only_recommendations(clicked_article_id, articles, word2vec_model, summary_cache=None):
+def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_model):
     """
-    요약만을 사용한 추천 시스템 (순수 요약 기반)
+    제목 기반 추천 시스템 (빠른 성능)
     """
     # 클릭한 기사 가져오기
-    clicked_article = next((a for a in articles if a['id'] == clicked_article_id), None)
+    clicked_article = next((a for a in articles_data if a['id'] == clicked_article_id), None)
 
     if clicked_article is None:
         return []  # 클릭한 기사를 찾을 수 없으면 빈 리스트 반환
 
-    # 요약 기반 임베딩 (캐시 사용)
-    if summary_cache is None:
-        summary_cache = {}
-    
-    if clicked_article_id in summary_cache:
-        clicked_summary = summary_cache[clicked_article_id]
-    else:
-        clicked_summary = get_summary(clicked_article['text'])
-        summary_cache[clicked_article_id] = clicked_summary
-    
-    clicked_summary_words = clicked_summary.split()
-    clicked_summary_embedding = np.mean([word2vec_model.wv[word] for word in clicked_summary_words if word in word2vec_model.wv], axis=0)
-    if np.isnan(clicked_summary_embedding).any() or len(clicked_summary_words) == 0:
-        clicked_summary_embedding = np.zeros(word2vec_model.vector_size)
+    # 클릭한 기사의 제목 임베딩 계산
+    clicked_title = clicked_article['title']
+    clicked_title_words = clicked_title.split()
+    clicked_title_embedding = np.mean([word2vec_model.wv[word] for word in clicked_title_words if word in word2vec_model.wv], axis=0)
+    if np.isnan(clicked_title_embedding).any() or len(clicked_title_words) == 0:
+        clicked_title_embedding = np.zeros(word2vec_model.vector_size)
 
-    # 성능 최적화: 전체 기사 대신 샘플 기사들만 사용 (처음 20개 기사)
-    sample_articles = articles[:20]  # 처음 20개 기사만 사용
-    summary_embeddings, updated_cache = get_summary_embeddings(sample_articles, word2vec_model, summary_cache)
+    # 성능 최적화: 처음 2000개 기사만 사용
+    sample_articles = articles_data[:100]
+    title_embeddings = get_title_embeddings(sample_articles, word2vec_model)
 
     # 클릭한 기사와 다른 기사들의 코사인 유사도 계산
-    similarities = cosine_similarity([clicked_summary_embedding], summary_embeddings).flatten()
+    similarities = cosine_similarity([clicked_title_embedding], title_embeddings).flatten()
 
     # 유사도가 높은 순으로 기사 추천 (자기 자신은 제외)
     recommended_articles = sorted(
@@ -224,7 +216,7 @@ def get_summary_only_recommendations(clicked_article_id, articles, word2vec_mode
     valid_articles = [article for article in recommended_articles if article[0] < len(sample_articles)]
 
     # 상위 5개 기사를 추천
-    return valid_articles[:5]
+    return valid_articles[:3]
 
 
 # def get_hybrid_recommendations(clicked_article_id, articles, word2vec_model, summary_cache=None):
@@ -302,7 +294,7 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
             conversation_text += f"{role}: {turn['message']}\n"
         
         # 현재 기사 정보 가져오기 (첫 번째 대화에서 기사 정보가 있을 경우)
-        article_summary = ""
+        article_title = ""
         if len(conversation_history) > 0:
             # 첫 번째 AI 메시지에서 기사 정보 추출 시도
             first_ai_message = None
@@ -311,50 +303,38 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
                     first_ai_message = turn["message"]
                     break
             
-            if first_ai_message and "기사 요약:" in first_ai_message:
-                # 기사 정보가 포함된 경우 요약 추출
+            if first_ai_message and "기사 제목:" in first_ai_message:
+                # 기사 정보가 포함된 경우 제목 추출
                 lines = first_ai_message.split('\n')
                 for line in lines:
-                    if "기사 요약:" in line:
-                        article_summary = line.replace("기사 요약:", "").strip()
+                    if "기사 제목:" in line:
+                        article_title = line.replace("기사 제목:", "").strip()
                         break
         
-        # 실제 뉴스 데이터에서 샘플 기사들 준비 (처음 100개 기사)
+        # 실제 뉴스 데이터에서 샘플 기사들 준비 (처음 100개 기사 - 토큰 제한 고려)
         sample_articles = articles_data[:100]
         articles_info = ""
         for i, article in enumerate(sample_articles):
-            articles_info += f"{i+1}. ID: {article['id']}, 제목: {article['title']}\n"
+            articles_info += f"{article['id']}: {article['title']}\n"
         
-        # AI에게 추천 요청
-        prompt = f"""
-당신은 토론 기반 뉴스 추천 엔진입니다.  
-다음은 사용자가 읽은 기사 요약과 챗봇과의 토론 기록입니다.  
+        # AI에게 추천 요청 (간결한 프롬프트)
+        prompt = f"""토론 기반 뉴스 추천 엔진입니다.
 
-[기사 요약]  
-{article_summary if article_summary else "기사 요약 정보가 없습니다."}  
+기사: {article_title if article_title else "정보 없음"}
+토론: {conversation_text[:1000]}...
 
-[토론 기록]  
-{conversation_text}  
-
-[사용 가능한 뉴스 데이터]
+사용 가능한 기사:
 {articles_info}
 
-위 토론에서 사용자가 특히 관심을 보인 쟁점, 질문, 의견을 분석하세요.  
-그 후, 사용 가능한 뉴스 데이터에서 토론을 심화할 수 있는 기사 5개를 선택하여 추천하세요.  
+토론 맥락에서 관련 기사 3개를 추천하세요.
 
-출력 형식:  
-1. 기사 제목 (ID: X)
-http://localhost:5002/article/X – 왜 추천하는지 (토론 맥락과 연결)  
-2. 기사 제목 (ID: Y)
-http://localhost:5002/article/Y - 왜 추천하는지  
-3. 기사 제목 (ID: Z)
-http://localhost:5002/article/Z - 왜 추천하는지  
-4. 기사 제목 (ID: A)
-http://localhost:5002/article/A - 왜 추천하는지  
-5. 기사 제목 (ID: B)
-http://localhost:5002/article/B - 왜 추천하는지  
-
-반드시 위의 사용 가능한 뉴스 데이터에서만 선택하세요.
+형식:
+1. 제목 (ID: X)
+http://localhost:5002/article/X - 추천 이유
+2. 제목 (ID: Y)  
+http://localhost:5002/article/Y - 추천 이유
+3. 제목 (ID: Z)
+http://localhost:5002/article/Z - 추천 이유
 """
         
         response = openai.ChatCompletion.create(
@@ -395,47 +375,47 @@ def get_word_definitions(keywords):
 
 
 # 기사를 요약하는 함수
-def get_summary(content):
-    try:
-        if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
-            return "API 키가 설정되지 않았습니다. 환경 변수 OPENAI_API_KEY를 설정하거나 setup_api_key.sh를 실행하세요."
+# def get_summary(content):
+#     try:
+#         if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
+#             return "API 키가 설정되지 않았습니다. 환경 변수 OPENAI_API_KEY를 설정하거나 setup_api_key.sh를 실행하세요."
         
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # 올바른 모델 이름
-            messages=[
-                {"role": "system", "content": "너는 친절하게 답변해주는 비서야. 다음의 기사를 적절하게 한 문장 내로 요약해줘."},
-                {"role": "user", "content": content}
-            ],
-            max_tokens=200
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        return f"요약 생성 실패: {str(e)}"
+#         response = openai.ChatCompletion.create(
+#             model="gpt-3.5-turbo",  # 올바른 모델 이름
+#             messages=[
+#                 {"role": "system", "content": "너는 친절하게 답변해주는 비서야. 다음의 기사를 적절하게 한 문장 내로 요약해줘."},
+#                 {"role": "user", "content": content}
+#             ],
+#             max_tokens=200
+#         )
+#         return response['choices'][0]['message']['content'].strip()
+#     except Exception as e:
+#         return f"요약 생성 실패: {str(e)}"
     
 
-def generate_four_panel_comic(article_summary):
-    """
-    요약 토대로 이미지를 생성하는 함수.
+# def generate_four_panel_comic(article_summary):
+#     """
+#     요약 토대로 이미지를 생성하는 함수.
 
-    Returns:
-        str: 생성된 이미지의 URL (오류 시 에러 메시지 반환)
-    """
+#     Returns:
+#         str: 생성된 이미지의 URL (오류 시 에러 메시지 반환)
+#     """
     
-    # 2. 만화 프롬프트 생성
-    prompt = (
-        f"Create an simple, small image based on summary (no text involved in the image)'{article_summary}': "
-    )
+#     # 2. 만화 프롬프트 생성
+#     prompt = (
+#         f"Create an simple, small image based on summary (no text involved in the image)'{article_summary}': "
+#     )
 
-    # 3. DALL·E API 호출하여 이미지 생성
-    try:
-        response = openai.Image.create(
-            prompt=prompt,
-            n=1,
-            size="1024x1024"
-        )
-        return response['data'][0]['url']
-    except Exception as e:
-        return f"이미지 생성 중 오류 발생: {str(e)}"
+#     # 3. DALL·E API 호출하여 이미지 생성
+#     try:
+#         response = openai.Image.create(
+#             prompt=prompt,
+#             n=1,
+#             size="1024x1024"
+#         )
+#         return response['data'][0]['url']
+#     except Exception as e:
+#         return f"이미지 생성 중 오류 발생: {str(e)}"
 
 
 articles_data = load_articles()
@@ -443,8 +423,8 @@ articles_data = load_articles()
 # Word2Vec 모델 로드 (이미 학습된 모델을 사용)
 word2vec_model = Word2Vec.load("utils/word2vec_model.model")  # 학습된 모델 경로로 변경
 
-# 요약 캐시 초기화 (성능 향상을 위해)
-summary_cache = load_summary_cache()
+# 요약 캐시 초기화 (성능 향상을 위해) - 제목 기반 추천으로 변경하여 비활성화
+# summary_cache = load_summary_cache()
 
 @app.route('/')
 def index():
@@ -466,7 +446,8 @@ def article(article_id):
     try:
         # word_definitions = get_word_definitions(article['filtered_keywords'])  # 주요 단어 정의 가져오기 (주석처리)
         word_definitions = {}  # 단어 정의 비활성화 (빈 딕셔너리로 설정)
-        summary = get_summary(article['text'])  # 기사 요약 가져오기
+        # summary = get_summary(article['text'])  # 기사 요약 가져오기 (제목 기반 추천으로 변경하여 비활성화)
+        summary = "제목 기반 추천 시스템으로 변경되어 요약 기능이 비활성화되었습니다."
         
         # 4컷 만화 생성 함수 호출 (주석처리)
         # image_url = generate_four_panel_comic(summary)
@@ -489,10 +470,7 @@ def article(article_id):
 
     # 클릭한 기사와 유사한 기사 추천하기 (요약 기반 추천 시스템 사용)
     try:
-        global summary_cache
-        recommended_articles = get_summary_only_recommendations(article_id, articles_data, word2vec_model, summary_cache)
-        # 캐시 업데이트 후 파일에 저장
-        save_summary_cache(summary_cache)
+        recommended_articles = get_title_based_recommendations(article_id, articles_data, word2vec_model)
     except Exception as e:
         print(f"추천 시스템 에러: {e}")
         recommended_articles = []
@@ -531,10 +509,7 @@ def get_cosine_recommendations():
             return jsonify({"error": "기사 ID가 필요합니다"}), 400
         
         # 코사인 유사도 기반 추천 생성
-        global summary_cache
-        recommended_articles = get_summary_only_recommendations(article_id, articles_data, word2vec_model, summary_cache)
-        # 캐시 업데이트 후 파일에 저장
-        save_summary_cache(summary_cache)
+        recommended_articles = get_title_based_recommendations(article_id, articles_data, word2vec_model)
         
         # 결과를 제목과 유사도 점수로 변환
         recommendations = []

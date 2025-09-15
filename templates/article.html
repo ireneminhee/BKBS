@@ -73,7 +73,7 @@
             <div class="col-lg-8">
                 <section class="summary">
                     <h2>요약</h2>
-                    <p >{{ summary }}</p>
+                    <p style="color: #666; font-style: italic;">{{ summary }}</p>
                 </section>
             </div>
 
@@ -103,8 +103,8 @@
                     <h2>관련 기사 추천</h2>
                     <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
                         <i class="fas fa-info-circle"></i> 
-                        기사 요약을 기반으로 한 AI 추천 시스템입니다. 
-                        본문의 핵심 내용을 요약하여 의미적 유사도를 계산하고 관련 기사를 추천합니다.
+                        기사 제목을 기반으로 한 추천 시스템입니다. 
+                        Word2Vec 모델을 사용하여 제목의 의미적 유사도를 계산하고 관련 기사를 추천합니다.
                     </p>
                     <ul>
                         {% for idx, score in recommended_articles %}
@@ -123,7 +123,7 @@
                     {% if image_url %}
                         <img src="{{ image_url }}" alt="image" style="width:100%; height:auto; max-width:1024px; object-fit:contain; border:1px solid #ccc; border-radius:10px;">
                     {% else %}
-                        <p>이미지를 불러오는 데 문제가 발생했습니다.</p>
+                        <p style="color: #666; font-style: italic;">AI 이미지 생성 기능이 비활성화되었습니다.</p>
                     {% endif %}
                 </section>
             </div>

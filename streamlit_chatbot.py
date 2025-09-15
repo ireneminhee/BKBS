@@ -64,8 +64,13 @@ def handle_user_input():
         # 챗봇 응답 생성
         with st.spinner("챗봇이 응답을 생성 중입니다..."):
             try:
+                # 기사 제목과 내용을 함께 전달
+                article_info = ""
+                if st.session_state["article"]:
+                    article_info = f"기사 제목: {st.session_state['article']['title']}\n기사 내용: {st.session_state['article']['text']}"
+                
                 chatbot_reply = chatgpt_response(
-                    context=st.session_state["article"]["text"] if st.session_state["article"] else "",
+                    context=article_info,
                     query=f"사용자가 '{user_message}'라고 말했어. 기사의 내용을 상기하며, 질문에 대한 응답 또는 다른 의견을 제시해줘. 말이 끊기지 않도록 300 토큰 제한에 신경 쓰며 4줄 안으로 요약해서 답변해줘",
                 )
                 # 챗봇 응답 저장
@@ -83,7 +88,6 @@ st.text_input(
 )
 
 # Step 3: AI 대화 기반 추천
-st.subheader("🤖 AI 대화 기반 추천")
 
 if st.button("💡 현재 대화를 기반으로 기사 추천받기", help="지금까지의 대화 내용을 분석하여 관련 기사를 추천합니다"):
     if len(st.session_state["conversation"]) > 0:
