@@ -198,7 +198,7 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
     if np.isnan(clicked_title_embedding).any() or len(clicked_title_words) == 0:
         clicked_title_embedding = np.zeros(word2vec_model.vector_size)
 
-    # 성능 최적화: 처음 2000개 기사만 사용
+    # 성능 최적화: 1000개 기사만 사용
     sample_articles = articles_data[:100]
     title_embeddings = get_title_embeddings(sample_articles, word2vec_model)
 
