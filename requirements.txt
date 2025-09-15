@@ -1,0 +1,25 @@
+# Flask
+flask==2.3.3
+
+# OpenAI API
+openai==0.28
+
+# Pandas for data processing
+pandas==1.5.3
+
+# Streamlit for the chatbot UI
+streamlit==1.25.0
+
+# Image processing
+Pillow==9.5.0
+
+# Machine Learning
+gensim==4.3.1
+scikit-learn==1.3.1
+numpy==1.24.4
+
+# Environment variables
+python-dotenv==1.0.0
+
+# konlpy==0.6.0  # 사용하지 않음
+
