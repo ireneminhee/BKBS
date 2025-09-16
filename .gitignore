@@ -74,3 +74,4 @@ tmp/
 
 # Cache files
 summary_cache.pkl
+data/data.csv

@@ -100,15 +100,19 @@ if st.button("💡 현재 대화를 기반으로 기사 추천받기", help="지
     if len(st.session_state["conversation"]) > 0:
         with st.spinner("AI가 대화 내용을 분석하여 기사를 추천 중..."):
             try:
+                # 챗봇에서 사용한 정보를 재사용하여 Flask로 전달
+                article = st.session_state.get("article")
+                
+                # 기사 정보 구성 (챗봇에서 사용한 것과 동일)
+                article_info = ""
+                if article:
+                    article_info = f"기사 제목: {article['title']}\n기사 내용: {article['text']}"
+                
                 # Flask 서버의 AI 추천 API 호출
                 request_data = {
-                    "conversation": st.session_state["conversation"]
+                    "conversation": st.session_state["conversation"],
+                    "article_info": article_info
                 }
-                
-                # 현재 기사 정보가 있으면 추가 (제목 기준으로 제외하기 위해)
-                article = st.session_state.get("article")
-                if article and article.get("title"):
-                    request_data["current_article_title"] = article["title"]
                 
                 response = requests.post("http://localhost:5002/get_ai_recommendations", 
                                        json=request_data)
