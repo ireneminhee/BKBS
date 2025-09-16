@@ -7,18 +7,6 @@ import json
 st.set_page_config(page_title="신문기사 기반 토론 챗봇", layout="centered")
 st.caption("사용자의 발언에 대한 AI의 반대 또는 다른 의견을 들어보세요.")
 
-# 쿼리 매개변수 가져오기
-query_params = st.query_params
-
-# 딕셔너리 표기법
-article_id = query_params.get("article_id", None)
-article_title = query_params.get("title", None)
-article_text = query_params.get("text")
-
-# 출력
-st.write(f"Article ID: {article_id}")
-st.write(f"Title: {article_title}")
-
 # 상태 초기화
 if "conversation" not in st.session_state:
     st.session_state["conversation"] = []  # 대화 저장
@@ -27,13 +15,20 @@ if "article" not in st.session_state:
 if "initial_statement_done" not in st.session_state:
     st.session_state["initial_statement_done"] = True  # 첫 발언 여부 (주제 제거로 기본값 True)
 
-# 기사 데이터를 세션 상태에 저장
-if article_id and article_title and article_text:
+# 쿼리 매개변수에서 기사 데이터를 세션 상태에 저장
+query_params = st.query_params
+if query_params.get("article_id") and query_params.get("title") and query_params.get("text"):
     st.session_state["article"] = {
-        "id": article_id,
-        "title": article_title,
-        "text": article_text
+        "id": query_params.get("article_id"),
+        "title": query_params.get("title"),
+        "text": query_params.get("text")
     }
+
+# 기사 정보 출력
+article = st.session_state.get("article")
+if article:
+    st.write(f"Article ID: {article['id']}")
+    st.write(f"Title: {article['title']}")
 
 # Step 1: 대화창
 st.subheader("💬 대화창")
@@ -66,8 +61,9 @@ def handle_user_input():
             try:
                 # 기사 정보 준비 (모든 질문에서 기사 내용 전달)
                 article_info = ""
-                if st.session_state["article"]:
-                    article_info = f"기사 제목: {st.session_state['article']['title']}\n기사 내용: {st.session_state['article']['text']}"
+                article = st.session_state.get("article")
+                if article:
+                    article_info = f"기사 제목: {article['title']}\n기사 내용: {article['text']}"
                 
                 # 이전 대화 기록을 맥락으로 구성
                 conversation_context = ""
@@ -110,8 +106,9 @@ if st.button("💡 현재 대화를 기반으로 기사 추천받기", help="지
                 }
                 
                 # 현재 기사 정보가 있으면 추가 (제목 기준으로 제외하기 위해)
-                if st.session_state.get("article") and st.session_state["article"].get("title"):
-                    request_data["current_article_title"] = st.session_state["article"]["title"]
+                article = st.session_state.get("article")
+                if article and article.get("title"):
+                    request_data["current_article_title"] = article["title"]
                 
                 response = requests.post("http://localhost:5002/get_ai_recommendations", 
                                        json=request_data)
