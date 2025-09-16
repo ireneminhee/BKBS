@@ -64,14 +64,25 @@ def handle_user_input():
         # 챗봇 응답 생성
         with st.spinner("챗봇이 응답을 생성 중입니다..."):
             try:
-                # 기사 제목과 내용을 함께 전달
+                # 기사 정보 준비 (모든 질문에서 기사 내용 전달)
                 article_info = ""
                 if st.session_state["article"]:
                     article_info = f"기사 제목: {st.session_state['article']['title']}\n기사 내용: {st.session_state['article']['text']}"
                 
+                # 이전 대화 기록을 맥락으로 구성
+                conversation_context = ""
+                if len(st.session_state["conversation"]) > 1:
+                    conversation_context = "이전 대화:\n"
+                    for turn in st.session_state["conversation"][:-1]:  # 현재 질문 제외
+                        role = "사용자" if turn["role"] == "user" else "AI"
+                        conversation_context += f"{role}: {turn['message']}\n"
+                
+                # 전체 맥락 구성
+                full_context = f"{article_info}\n\n{conversation_context}".strip()
+                
                 chatbot_reply = chatgpt_response(
-                    context=article_info,
-                    query=f"사용자가 '{user_message}'라고 말했어. 기사의 내용을 상기하며, 질문에 대한 응답 또는 다른 의견을 제시해줘. 말이 끊기지 않도록 300 토큰 제한에 신경 쓰며 4줄 안으로 요약해서 답변해줘",
+                    context=full_context,
+                    query=f"사용자가 '{user_message}'라고 말했어. 기사 내용과 이전 대화를 참고하여 질문에 대한 응답 또는 다른 의견을 제시해줘. 말이 끊기지 않도록 300 토큰 제한에 신경 쓰며 4줄 안으로 요약해서 답변해줘",
                 )
                 # 챗봇 응답 저장
                 st.session_state["conversation"].append({"role": "bot", "message": chatbot_reply})
@@ -94,8 +105,16 @@ if st.button("💡 현재 대화를 기반으로 기사 추천받기", help="지
         with st.spinner("AI가 대화 내용을 분석하여 기사를 추천 중..."):
             try:
                 # Flask 서버의 AI 추천 API 호출
+                request_data = {
+                    "conversation": st.session_state["conversation"]
+                }
+                
+                # 현재 기사 정보가 있으면 추가 (제목 기준으로 제외하기 위해)
+                if st.session_state.get("article") and st.session_state["article"].get("title"):
+                    request_data["current_article_title"] = st.session_state["article"]["title"]
+                
                 response = requests.post("http://localhost:5002/get_ai_recommendations", 
-                                       json={"conversation": st.session_state["conversation"]})
+                                       json=request_data)
                 if response.status_code == 200:
                     ai_recommendation = response.json()["recommendation"]
                     st.session_state["ai_recommendation"] = ai_recommendation

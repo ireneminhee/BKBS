@@ -198,8 +198,8 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
     if np.isnan(clicked_title_embedding).any() or len(clicked_title_words) == 0:
         clicked_title_embedding = np.zeros(word2vec_model.vector_size)
 
-    # 성능 최적화: 1000개 기사만 사용
-    sample_articles = articles_data[:100]
+    # 성능 최적화: 10000개 기사만 사용
+    sample_articles = articles_data[:10000]
     title_embeddings = get_title_embeddings(sample_articles, word2vec_model)
 
     # 클릭한 기사와 다른 기사들의 코사인 유사도 계산
@@ -215,7 +215,7 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
     # 유효한 인덱스만 필터링
     valid_articles = [article for article in recommended_articles if article[0] < len(sample_articles)]
 
-    # 상위 5개 기사를 추천
+    # 상위 3개 기사를 추천
     return valid_articles[:3]
 
 
@@ -279,9 +279,10 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
 #     return valid_articles[:5]
 
 # 대화 기록을 바탕으로 한 AI 추천 함수
-def get_conversation_based_recommendations(conversation_history, articles_data, num_recommendations=5):
+def get_conversation_based_recommendations(conversation_history, articles_data, current_article_title=None):
     """
     대화 기록을 바탕으로 AI가 실제 뉴스 데이터에서 기사를 추천하는 함수
+    current_article_title: 현재 읽고 있는 기사 제목 (추천에서 제외)
     """
     try:
         if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
@@ -293,9 +294,10 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
             role = "사용자" if turn["role"] == "user" else "AI"
             conversation_text += f"{role}: {turn['message']}\n"
         
-        # 현재 기사 정보 가져오기 (첫 번째 대화에서 기사 정보가 있을 경우)
-        article_title = ""
-        if len(conversation_history) > 0:
+        # 현재 기사 제목 사용 (파라미터로 받은 제목 우선, 없으면 대화에서 추출)
+        article_title = current_article_title or ""
+        
+        if not article_title and len(conversation_history) > 0:
             # 첫 번째 AI 메시지에서 기사 정보 추출 시도
             first_ai_message = None
             for turn in conversation_history:
@@ -311,8 +313,13 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
                         article_title = line.replace("기사 제목:", "").strip()
                         break
         
-        # 실제 뉴스 데이터에서 샘플 기사들 준비 (처음 100개 기사 - 토큰 제한 고려)
-        sample_articles = articles_data[:100]
+        # 실제 뉴스 데이터에서 샘플 기사들 준비 (처음 10000개 기사 - 토큰 제한 고려)
+        sample_articles = articles_data[:10000]
+        
+        # 현재 기사가 있으면 추천 풀에서 제외 (제목 기준)
+        if article_title and article_title != "정보 없음":
+            sample_articles = [article for article in sample_articles if article['title'] != article_title]
+        
         articles_info = ""
         for i, article in enumerate(sample_articles):
             articles_info += f"{article['id']}: {article['title']}\n"
@@ -321,12 +328,12 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
         prompt = f"""토론 기반 뉴스 추천 엔진입니다.
 
 기사: {article_title if article_title else "정보 없음"}
-토론: {conversation_text[:1000]}...
+토론: {conversation_text}...
 
 사용 가능한 기사:
 {articles_info}
 
-토론 맥락에서 관련 기사 3개를 추천하세요.
+토론 맥락에서 관련 기사 3개를 추천하세요. 단 본인 기사는 제외해주세요.
 
 형식:
 1. 제목 (ID: X)
@@ -338,7 +345,7 @@ http://localhost:5002/article/Z - 추천 이유
 """
         
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": "당신은 토론 기반 뉴스 추천 엔진입니다. 사용자의 토론 내용을 분석하여 제공된 실제 뉴스 데이터에서 토론을 심화할 수 있는 관련 기사들을 선택하여 추천해주세요."},
                 {"role": "user", "content": prompt}
@@ -485,12 +492,13 @@ def get_ai_recommendations():
     try:
         data = request.get_json()
         conversation = data.get('conversation', [])
+        current_article_title = data.get('current_article_title', None)
         
         if not conversation:
             return jsonify({"error": "대화 기록이 없습니다"}), 400
         
-        # AI 추천 생성
-        ai_recommendation = get_conversation_based_recommendations(conversation, articles_data)
+        # AI 추천 생성 (현재 기사 제목 전달)
+        ai_recommendation = get_conversation_based_recommendations(conversation, articles_data, current_article_title)
         
         return jsonify({"recommendation": ai_recommendation})
         
