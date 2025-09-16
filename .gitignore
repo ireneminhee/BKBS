@@ -66,8 +66,6 @@ tmp/
 # Jupyter Notebook
 .ipynb_checkpoints/
 
-# Data files (if sensitive)
-# data/data.csv
 
 # Model files (if large)
 # utils/word2vec_model.model

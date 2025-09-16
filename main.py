@@ -70,10 +70,10 @@ def load_articles():
             'title': row['title'],
             'text': row['text'],
             'processed_text': row['processed_text'],
-            'tfidf_keywords': safe_literal_eval(row['tfidf_keywords']),
-            'tfidf_scores': safe_literal_eval(row['tfidf_scores']),
-            'keybert_keywords': safe_literal_eval(row['keybert_keywords']),
-            'keybert_scores': safe_literal_eval(row['keybert_scores']),
+            #'tfidf_keywords': safe_literal_eval(row['tfidf_keywords']),
+            #'tfidf_scores': safe_literal_eval(row['tfidf_scores']),
+            #'keybert_keywords': safe_literal_eval(row['keybert_keywords']),
+            #'keybert_scores': safe_literal_eval(row['keybert_scores']),
             'filtered_keywords': safe_literal_eval(row['filtered_keywords']),
         }
         articles.append(article)
@@ -81,7 +81,7 @@ def load_articles():
     return articles
 
 
-# `ast.literal_eval`을 안전하게 처리하는 함수
+# `ast.literal_eval`을 안전하게 처리하는 함수. 문자열을 파이썬 객체로 반환하는 역할
 def safe_literal_eval(value):
     try:
         return ast.literal_eval(value)
