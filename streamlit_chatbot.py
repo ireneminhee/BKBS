@@ -59,22 +59,29 @@ def handle_user_input():
         # 챗봇 응답 생성
         with st.spinner("챗봇이 응답을 생성 중입니다..."):
             try:
-                # 기사 정보 준비 (모든 질문에서 기사 내용 전달)
-                article_info = ""
+                # 첫 번째 질문에서만 기사 정보를 시스템 메시지로 저장
                 article = st.session_state.get("article")
-                if article:
-                    article_info = f"기사 ID: {article['id']}\n기사 제목: {article['title']}\n기사 내용: {article['text']}"
+                if article and len(st.session_state["conversation"]) == 1:
+                    system_message = f"현재 논의 중인 기사:\n기사 ID: {article['id']}\n기사 제목: {article['title']}\n기사 내용: {article['text']}"
+                    st.session_state["conversation"].insert(0, {"role": "system", "message": system_message})
                 
-                # 이전 대화 기록을 맥락으로 구성
+                # 기사 정보는 더 이상 매번 전달하지 않음
+                article_info = ""
+                
+                # 대화 기록을 맥락으로 구성 (시스템 메시지 포함)
                 conversation_context = ""
                 if len(st.session_state["conversation"]) > 1:
-                    conversation_context = "이전 대화:\n"
+                    conversation_context = "대화 기록:\n"
+                    # 시스템 메시지부터 현재 질문 전까지 모든 대화 포함
                     for turn in st.session_state["conversation"][:-1]:  # 현재 질문 제외
-                        role = "사용자" if turn["role"] == "user" else "AI"
-                        conversation_context += f"{role}: {turn['message']}\n"
+                        if turn["role"] == "system":
+                            conversation_context += f"[시스템]: {turn['message']}\n\n"
+                        else:
+                            role = "사용자" if turn["role"] == "user" else "AI"
+                            conversation_context += f"{role}: {turn['message']}\n"
                 
                 # 전체 맥락 구성
-                full_context = f"{article_info}\n\n{conversation_context}".strip()
+                full_context = conversation_context.strip()
                 
                 chatbot_reply = chatgpt_response(
                     context=full_context,
@@ -103,15 +110,10 @@ if st.button("💡 현재 대화를 기반으로 기사 추천받기", help="지
                 # 챗봇에서 사용한 정보를 재사용하여 Flask로 전달
                 article = st.session_state.get("article")
                 
-                # 기사 정보 구성 (챗봇에서 사용한 것과 동일)
-                article_info = ""
-                if article:
-                    article_info = f"기사 ID: {article['id']}\n기사 제목: {article['title']}\n기사 내용: {article['text']}"
-                
                 # Flask 서버의 AI 추천 API 호출
                 request_data = {
                     "conversation": st.session_state["conversation"],
-                    "article_info": article_info
+                    "current_article_id": article['id'] if article else None
                 }
                 
                 response = requests.post("http://localhost:5002/get_ai_recommendations", 

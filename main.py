@@ -198,7 +198,7 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
     if np.isnan(clicked_title_embedding).any() or len(clicked_title_words) == 0:
         clicked_title_embedding = np.zeros(word2vec_model.vector_size)
 
-    # 성능 최적화: 10000개 기사만 사용 (이미 로드 시점에 제한됨)
+    # 성능 최적화: 50개 기사만 사용 (이미 로드 시점에 제한됨)
     sample_articles = articles_data
     title_embeddings = get_title_embeddings(sample_articles, word2vec_model)
 
@@ -216,7 +216,7 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
     valid_articles = [article for article in recommended_articles if article[0] < len(sample_articles)]
 
     # 상위 3개 기사를 추천
-    return valid_articles[:3]
+    return valid_articles[:5]
 
 
 # def get_hybrid_recommendations(clicked_article_id, articles, word2vec_model, summary_cache=None):
@@ -279,10 +279,10 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
 #     return valid_articles[:5]
 
 # 대화 기록을 바탕으로 한 AI 추천 함수
-def get_conversation_based_recommendations(conversation_history, articles_data, article_info=""):
+def get_conversation_based_recommendations(conversation_history, articles_data, current_article_id=None):
     """
     대화 기록을 바탕으로 AI가 실제 뉴스 데이터에서 기사를 추천하는 함수
-    article_info: 챗봇에서 사용한 기사 정보 (재사용, 제목 추출용)
+    current_article_id: 현재 보고 있는 기사의 ID (제외용)
     """
     try:
         if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
@@ -294,37 +294,27 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
             role = "사용자" if turn["role"] == "user" else "AI"
             conversation_text += f"{role}: {turn['message']}\n"
         
-        # 실제 뉴스 데이터에서 샘플 기사들 준비 (이미 로드 시점에 10000개로 제한됨)
+        # 실제 뉴스 데이터에서 샘플 기사들 준비 (이미 로드 시점에 50개로 제한됨)
         sample_articles = articles_data
         
         # 현재 기사가 있으면 추천 풀에서 제외 (ID 기준)
-        # article_info에서 기사 ID 추출
-        current_article_id = ""
-        if article_info and "기사 ID:" in article_info:
-            lines = article_info.split('\n')
-            for line in lines:
-                if line.startswith("기사 ID:"):
-                    current_article_id = line.replace("기사 ID:", "").strip()
-                    break
-        
-        if current_article_id and current_article_id != "정보 없음":
-            sample_articles = [article for article in sample_articles if str(article['id']) != current_article_id]
+        if current_article_id:
+            sample_articles = [article for article in sample_articles if str(article['id']) != str(current_article_id)]
         
         articles_info = ""
         for i, article in enumerate(sample_articles):
-            articles_info += f"{article['id']}: {article['title']}\n"
+            body = article.get('text', '').replace('\n', ' ') #토큰절약을 위해
+            articles_info += f"{article['id']}: {article['title']} | 내용: {body}\n"
         
-        # AI에게 추천 요청 (재사용된 정보 활용)
+        # AI에게 추천 요청 (대화 기록 활용)
         prompt = f"""토론 기반 뉴스 추천 엔진입니다.
-
-{article_info}
 
 토론: {conversation_text}
 
 사용 가능한 기사:
 {articles_info}
 
-토론 맥락에서 관련 기사 3개를 추천하세요. 단 본인 기사는 제외해주세요.
+토론 맥락에서 관련 기사 5개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
 
 형식:
 1. 제목 (ID: X)
@@ -333,7 +323,18 @@ http://localhost:5002/article/X - 추천 이유
 http://localhost:5002/article/Y - 추천 이유
 3. 제목 (ID: Z)
 http://localhost:5002/article/Z - 추천 이유
+4. 제목 (ID: A)
+http://localhost:5002/article/A - 추천 이유
+5. 제목 (ID: B)
+http://localhost:5002/article/B - 추천 이유
 """
+        
+        # 프롬프트 내용 출력 (디버깅용)
+        print("=" * 80)
+        print("GPT에게 보내는 프롬프트:")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
         
         response = openai.ChatCompletion.create(
             model="gpt-4.1",
@@ -416,8 +417,8 @@ def get_word_definitions(keywords):
 #         return f"이미지 생성 중 오류 발생: {str(e)}"
 
 
-# 성능 최적화: 처음 10,000개 기사만 로드
-articles_data = load_articles()[:10000]
+# 성능 최적화: 처음 50개 기사만 로드
+articles_data = load_articles()[6310:6360]
 
 # Word2Vec 모델 로드 (이미 학습된 모델을 사용)
 word2vec_model = Word2Vec.load("utils/word2vec_model.model")  # 학습된 모델 경로로 변경
@@ -431,7 +432,7 @@ def index():
 
 @app.route('/article_list')
 def article_list():
-    return render_template('article_list.html', articles=articles_data[6310:6319])
+    return render_template('article_list.html', articles=articles_data[0:10])
 
 
 @app.route('/article/<int:article_id>', methods=['GET', 'POST'])
@@ -484,14 +485,14 @@ def get_ai_recommendations():
     try:
         data = request.get_json()
         conversation = data.get('conversation', [])
-        article_info = data.get('article_info', '')
+        current_article_id = data.get('current_article_id')
         
         if not conversation:
             return jsonify({"error": "대화 기록이 없습니다"}), 400
         
-        # AI 추천 생성 (재사용된 정보 전달)
+        # AI 추천 생성 (ID 직접 전달)
         ai_recommendation = get_conversation_based_recommendations(
-            conversation, articles_data, article_info
+            conversation, articles_data, current_article_id
         )
         
         return jsonify({"recommendation": ai_recommendation})
