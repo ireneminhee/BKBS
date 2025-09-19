@@ -63,7 +63,7 @@ def handle_user_input():
                 article_info = ""
                 article = st.session_state.get("article")
                 if article:
-                    article_info = f"기사 제목: {article['title']}\n기사 내용: {article['text']}"
+                    article_info = f"기사 ID: {article['id']}\n기사 제목: {article['title']}\n기사 내용: {article['text']}"
                 
                 # 이전 대화 기록을 맥락으로 구성
                 conversation_context = ""
@@ -106,7 +106,7 @@ if st.button("💡 현재 대화를 기반으로 기사 추천받기", help="지
                 # 기사 정보 구성 (챗봇에서 사용한 것과 동일)
                 article_info = ""
                 if article:
-                    article_info = f"기사 제목: {article['title']}\n기사 내용: {article['text']}"
+                    article_info = f"기사 ID: {article['id']}\n기사 제목: {article['title']}\n기사 내용: {article['text']}"
                 
                 # Flask 서버의 AI 추천 API 호출
                 request_data = {

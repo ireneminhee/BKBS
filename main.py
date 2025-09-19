@@ -297,18 +297,18 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
         # 실제 뉴스 데이터에서 샘플 기사들 준비 (이미 로드 시점에 10000개로 제한됨)
         sample_articles = articles_data
         
-        # 현재 기사가 있으면 추천 풀에서 제외 (제목 기준)
-        # article_info에서 기사 제목 추출
-        current_article_title = ""
-        if article_info and "기사 제목:" in article_info:
+        # 현재 기사가 있으면 추천 풀에서 제외 (ID 기준)
+        # article_info에서 기사 ID 추출
+        current_article_id = ""
+        if article_info and "기사 ID:" in article_info:
             lines = article_info.split('\n')
             for line in lines:
-                if line.startswith("기사 제목:"):
-                    current_article_title = line.replace("기사 제목:", "").strip()
+                if line.startswith("기사 ID:"):
+                    current_article_id = line.replace("기사 ID:", "").strip()
                     break
         
-        if current_article_title and current_article_title != "정보 없음":
-            sample_articles = [article for article in sample_articles if article['title'] != current_article_title]
+        if current_article_id and current_article_id != "정보 없음":
+            sample_articles = [article for article in sample_articles if str(article['id']) != current_article_id]
         
         articles_info = ""
         for i, article in enumerate(sample_articles):
