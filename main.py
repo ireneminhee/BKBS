@@ -7,6 +7,7 @@ from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import cosine_similarity
 # from konlpy.tag import Okt  # 사용하지 않음
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
 app = Flask(__name__)
 
@@ -60,21 +61,19 @@ def run_streamlit():
 
 # CSV 파일에서 데이터 읽기
 def load_articles():
-    df = pd.read_csv('data/data.csv')  # 데이터 파일 읽기
+    df = pd.read_csv('data/news_data_2.csv')  # 데이터 파일 읽기
+    # processed_text 컬럼 동적 생성 (title + content)
     articles = []
 
     # iterrows()는 index와 row를 반환합니다.
     for index, row in df.iterrows():
         article = {
             'id': index,  # 'id'를 index로 설정
+            'date': row['date'],
+            'journalist': row['journalist'],
+            'source': row['source'],
             'title': row['title'],
-            'text': row['text'],
-            'processed_text': row['processed_text'],
-            #'tfidf_keywords': safe_literal_eval(row['tfidf_keywords']),
-            #'tfidf_scores': safe_literal_eval(row['tfidf_scores']),
-            #'keybert_keywords': safe_literal_eval(row['keybert_keywords']),
-            #'keybert_scores': safe_literal_eval(row['keybert_scores']),
-            'filtered_keywords': safe_literal_eval(row['filtered_keywords']),
+            'content': row['content']
         }
         articles.append(article)
 
@@ -89,101 +88,27 @@ def safe_literal_eval(value):
         return []
 
 
-
-def get_title_embeddings(articles_data, word2vec_model):
-    title_embeddings = []
-    for article in articles_data:
-        title = article['title']
-        words = title.split()  # 제목을 공백 기준으로 단어 분리
-        title_vector = []
-
-        for word in words:
-            if word in word2vec_model.wv:
-                title_vector.append(word2vec_model.wv[word])
-
-        # 제목에 대한 벡터가 있으면 평균 벡터를 반환
-        if title_vector:
-            title_embeddings.append(np.mean(title_vector, axis=0))
-        else:
-            title_embeddings.append(np.zeros(word2vec_model.vector_size))  # 벡터가 없으면 0 벡터 반환
-
-    return title_embeddings
-
-
-# def get_summary_embeddings(articles_data, word2vec_model, summary_cache=None):
-#     """
-#     기사 요약을 기반으로 임베딩을 생성하는 함수
-#     summary_cache: 기사 ID를 키로 하고 요약을 값으로 하는 딕셔너리 (캐싱용)
-#     """
-#     summary_embeddings = []
-#     if summary_cache is None:
-#         summary_cache = {}
-    
-#     for article in articles_data:
-#         article_id = article['id']
-        
-#         # 캐시에서 요약을 찾거나 새로 생성
-#         if article_id in summary_cache:
-#             summary = summary_cache[article_id]
-#         else:
-#             summary = get_summary(article['text'])
-#             summary_cache[article_id] = summary
-        
-#         # 요약 텍스트를 단어로 분리
-#         words = summary.split()
-#         summary_vector = []
-
-#         for word in words:
-#             if word in word2vec_model.wv:
-#                 summary_vector.append(word2vec_model.wv[word])
-
-#         # 요약에 대한 벡터가 있으면 평균 벡터를 반환
-#         if summary_vector:
-#             summary_embeddings.append(np.mean(summary_vector, axis=0))
-#         else:
-#             summary_embeddings.append(np.zeros(word2vec_model.vector_size))  # 벡터가 없으면 0 벡터 반환
-
-#     return summary_embeddings, summary_cache
-
-
-# def get_recommendations(clicked_article_id, articles, word2vec_model):
-#     # 클릭한 기사 가져오기
-#     clicked_article = next((a for a in articles if a['id'] == clicked_article_id), None)
-
-#     if clicked_article is None:
-#         return []  # 클릭한 기사를 찾을 수 없으면 빈 리스트 반환
-
-#     # 클릭한 기사의 요약을 생성하고 임베딩 계산
-#     clicked_summary = get_summary(clicked_article['text'])
-#     clicked_summary_words = clicked_summary.split()
-#     clicked_embedding = np.mean([word2vec_model.wv[word] for word in clicked_summary_words if word in word2vec_model.wv], axis=0)
-
-#     if np.isnan(clicked_embedding).any() or len(clicked_summary_words) == 0:
-#         clicked_embedding = np.zeros(word2vec_model.vector_size)  # 임베딩이 없으면 0 벡터로 설정
-
-#     # 요약 임베딩 계산 (전체 기사 목록에 대해)
-#     summary_embeddings = get_summary_embeddings(articles, word2vec_model)
-
-#     # 클릭한 기사와 다른 기사들의 코사인 유사도 계산
-#     similarities = cosine_similarity([clicked_embedding], summary_embeddings).flatten()
-
-#     # 유사도가 높은 순으로 기사 추천 (자기 자신은 제외)
-#     recommended_articles = sorted(
-#         [(i, sim) for i, sim in enumerate(similarities) if articles[i]['id'] != clicked_article_id],
-#         key=lambda x: x[1],
-#         reverse=True
-#     )
-
-#     # 유효한 인덱스만 필터링
-#     valid_articles = [article for article in recommended_articles if article[0] < len(articles)]
-
-#     # 상위 5개 기사를 추천
-#     return valid_articles[:5]
-
-
-def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_model):
+def get_text_embeddings(articles_data, sentence_model):
     """
-    제목 기반 추천 시스템 (빠른 성능)
+    SentenceTransformer를 사용하여 텍스트 임베딩 생성
+    """
+    # 모든 기사의 텍스트를 리스트로 추출
+    texts = []
+    for article in articles_data:
+        # title + content 결합
+        combined_text = article['title'] + " " + article['content']
+        texts.append(combined_text)
+    
+    # SentenceTransformer로 임베딩 생성
+    embeddings = sentence_model.encode(texts, convert_to_tensor=False)
+    
+    return embeddings
+
+
+
+def get_text_based_recommendations(clicked_article_id, articles_data, sentence_model):
+    """
+    SentenceTransformer 기반 텍스트 추천 시스템
     """
     # 클릭한 기사 가져오기
     clicked_article = next((a for a in articles_data if a['id'] == clicked_article_id), None)
@@ -191,92 +116,26 @@ def get_title_based_recommendations(clicked_article_id, articles_data, word2vec_
     if clicked_article is None:
         return []  # 클릭한 기사를 찾을 수 없으면 빈 리스트 반환
 
-    # 클릭한 기사의 제목 임베딩 계산
-    clicked_title = clicked_article['title']
-    clicked_title_words = clicked_title.split()
-    clicked_title_embedding = np.mean([word2vec_model.wv[word] for word in clicked_title_words if word in word2vec_model.wv], axis=0)
-    if np.isnan(clicked_title_embedding).any() or len(clicked_title_words) == 0:
-        clicked_title_embedding = np.zeros(word2vec_model.vector_size)
+    # 클릭한 기사의 텍스트 임베딩 계산
+    clicked_text = clicked_article['title'] + " " + clicked_article['content']
+    clicked_embedding = sentence_model.encode([clicked_text], convert_to_tensor=False)
 
-    # 성능 최적화: 50개 기사만 사용 (이미 로드 시점에 제한됨)
-    sample_articles = articles_data
-    title_embeddings = get_title_embeddings(sample_articles, word2vec_model)
+    # 모든 기사의 텍스트 임베딩 계산
+    text_embeddings = get_text_embeddings(articles_data, sentence_model)
 
     # 클릭한 기사와 다른 기사들의 코사인 유사도 계산
-    similarities = cosine_similarity([clicked_title_embedding], title_embeddings).flatten()
+    similarities = cosine_similarity(clicked_embedding, text_embeddings).flatten()
 
     # 유사도가 높은 순으로 기사 추천 (자기 자신은 제외)
     recommended_articles = sorted(
-        [(i, sim) for i, sim in enumerate(similarities) if sample_articles[i]['id'] != clicked_article_id],
+        [(i, sim) for i, sim in enumerate(similarities) if articles_data[i]['id'] != clicked_article_id],
         key=lambda x: x[1],
         reverse=True
     )
 
-    # 유효한 인덱스만 필터링
-    valid_articles = [article for article in recommended_articles if article[0] < len(sample_articles)]
+    # 상위 5개 기사를 추천
+    return recommended_articles[:5]
 
-    # 상위 3개 기사를 추천
-    return valid_articles[:5]
-
-
-# def get_hybrid_recommendations(clicked_article_id, articles, word2vec_model, summary_cache=None):
-#     """
-#     제목과 요약을 모두 고려한 하이브리드 추천 시스템
-#     """
-#     # 클릭한 기사 가져오기
-#     clicked_article = next((a for a in articles if a['id'] == clicked_article_id), None)
-
-#     if clicked_article is None:
-#         return []  # 클릭한 기사를 찾을 수 없으면 빈 리스트 반환
-
-#     # 제목 기반 임베딩
-#     clicked_title = clicked_article['title']
-#     clicked_title_embedding = np.mean([word2vec_model.wv[word] for word in clicked_title.split() if word in word2vec_model.wv], axis=0)
-#     if np.isnan(clicked_title_embedding).any():
-#         clicked_title_embedding = np.zeros(word2vec_model.vector_size)
-
-#     # 요약 기반 임베딩 (캐시 사용)
-#     if summary_cache is None:
-#         summary_cache = {}
-    
-#     if clicked_article_id in summary_cache:
-#         clicked_summary = summary_cache[clicked_article_id]
-#     else:
-#         clicked_summary = get_summary(clicked_article['text'])
-#         summary_cache[clicked_article_id] = clicked_summary
-    
-#     clicked_summary_words = clicked_summary.split()
-#     clicked_summary_embedding = np.mean([word2vec_model.wv[word] for word in clicked_summary_words if word in word2vec_model.wv], axis=0)
-#     if np.isnan(clicked_summary_embedding).any() or len(clicked_summary_words) == 0:
-#         clicked_summary_embedding = np.zeros(word2vec_model.vector_size)
-
-#     # 제목과 요약 임베딩을 결합 (가중 평균: 요약 70%, 제목 30%)
-#     clicked_combined_embedding = 0.7 * clicked_summary_embedding + 0.3 * clicked_title_embedding
-
-#     # 전체 기사들의 하이브리드 임베딩 계산
-#     title_embeddings = get_title_embeddings(articles, word2vec_model)
-#     summary_embeddings, updated_cache = get_summary_embeddings(articles, word2vec_model, summary_cache)
-    
-#     combined_embeddings = []
-#     for i in range(len(articles)):
-#         combined_embedding = 0.7 * summary_embeddings[i] + 0.3 * title_embeddings[i]
-#         combined_embeddings.append(combined_embedding)
-
-#     # 클릭한 기사와 다른 기사들의 코사인 유사도 계산
-#     similarities = cosine_similarity([clicked_combined_embedding], combined_embeddings).flatten()
-
-#     # 유사도가 높은 순으로 기사 추천 (자기 자신은 제외)
-#     recommended_articles = sorted(
-#         [(i, sim) for i, sim in enumerate(similarities) if articles[i]['id'] != clicked_article_id],
-#         key=lambda x: x[1],
-#         reverse=True
-#     )
-
-#     # 유효한 인덱스만 필터링
-#     valid_articles = [article for article in recommended_articles if article[0] < len(articles)]
-
-#     # 상위 5개 기사를 추천
-#     return valid_articles[:5]
 
 # 대화 기록을 바탕으로 한 AI 추천 함수
 def get_conversation_based_recommendations(conversation_history, articles_data, current_article_id=None):
@@ -291,8 +150,12 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
         # 대화 기록을 텍스트로 변환 (conversation_history 사용)
         conversation_text = ""
         for turn in conversation_history:
-            role = "사용자" if turn["role"] == "user" else "AI"
-            conversation_text += f"{role}: {turn['message']}\n"
+            if turn["role"] == "system":
+                conversation_text += f"[시스템]: {turn['message']}\n\n"
+            elif turn["role"] == "user":
+                conversation_text += f"사용자: {turn['message']}\n"
+            else:  # bot
+                conversation_text += f"AI: {turn['message']}\n"
         
         # 실제 뉴스 데이터에서 샘플 기사들 준비 (이미 로드 시점에 50개로 제한됨)
         sample_articles = articles_data
@@ -303,18 +166,31 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
         
         articles_info = ""
         for i, article in enumerate(sample_articles):
-            body = article.get('text', '').replace('\n', ' ') #토큰절약을 위해
+            body = article.get('content', '').replace('\n', ' ') #토큰절약을 위해
             articles_info += f"{article['id']}: {article['title']} | 내용: {body}\n"
         
+        # 현재 기사 정보 추가
+        current_article_info = ""
+        if current_article_id:
+            current_article = next((a for a in articles_data if str(a['id']) == str(current_article_id)), None)
+            if current_article:
+                current_body = current_article.get('content', '').replace('\n', ' ')
+                current_article_info = f"""
+현재 논의 중인 기사:
+제목: {current_article['title']}
+내용: {current_body}
+"""
+
         # AI에게 추천 요청 (대화 기록 활용)
         prompt = f"""토론 기반 뉴스 추천 엔진입니다.
 
+{current_article_info}
 토론: {conversation_text}
 
 사용 가능한 기사:
 {articles_info}
 
-토론 맥락에서 관련 기사 5개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
+현재 기사와 토론 맥락을 고려하여 관련 기사 5개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
 
 형식:
 1. 제목 (ID: X)
@@ -373,55 +249,11 @@ def get_word_definitions(keywords):
     return word_definitions
 
 
-# 기사를 요약하는 함수
-# def get_summary(content):
-#     try:
-#         if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
-#             return "API 키가 설정되지 않았습니다. 환경 변수 OPENAI_API_KEY를 설정하거나 setup_api_key.sh를 실행하세요."
-        
-#         response = openai.ChatCompletion.create(
-#             model="gpt-3.5-turbo",  # 올바른 모델 이름
-#             messages=[
-#                 {"role": "system", "content": "너는 친절하게 답변해주는 비서야. 다음의 기사를 적절하게 한 문장 내로 요약해줘."},
-#                 {"role": "user", "content": content}
-#             ],
-#             max_tokens=200
-#         )
-#         return response['choices'][0]['message']['content'].strip()
-#     except Exception as e:
-#         return f"요약 생성 실패: {str(e)}"
-    
+#50개 로드
+articles_data = load_articles()
 
-# def generate_four_panel_comic(article_summary):
-#     """
-#     요약 토대로 이미지를 생성하는 함수.
-
-#     Returns:
-#         str: 생성된 이미지의 URL (오류 시 에러 메시지 반환)
-#     """
-    
-#     # 2. 만화 프롬프트 생성
-#     prompt = (
-#         f"Create an simple, small image based on summary (no text involved in the image)'{article_summary}': "
-#     )
-
-#     # 3. DALL·E API 호출하여 이미지 생성
-#     try:
-#         response = openai.Image.create(
-#             prompt=prompt,
-#             n=1,
-#             size="1024x1024"
-#         )
-#         return response['data'][0]['url']
-#     except Exception as e:
-#         return f"이미지 생성 중 오류 발생: {str(e)}"
-
-
-# 성능 최적화: 처음 50개 기사만 로드
-articles_data = load_articles()[6310:6360]
-
-# Word2Vec 모델 로드 (이미 학습된 모델을 사용)
-word2vec_model = Word2Vec.load("utils/word2vec_model.model")  # 학습된 모델 경로로 변경
+# SentenceTransformer 모델 로드
+sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # 요약 캐시 초기화 (성능 향상을 위해) - 제목 기반 추천으로 변경하여 비활성화
 # summary_cache = load_summary_cache()
@@ -470,7 +302,7 @@ def article(article_id):
 
     # 클릭한 기사와 유사한 기사 추천하기 (요약 기반 추천 시스템 사용)
     try:
-        recommended_articles = get_title_based_recommendations(article_id, articles_data, word2vec_model)
+        recommended_articles = get_text_based_recommendations(article_id, articles_data, sentence_model)
     except Exception as e:
         print(f"추천 시스템 에러: {e}")
         recommended_articles = []
@@ -512,7 +344,7 @@ def get_cosine_recommendations():
             return jsonify({"error": "기사 ID가 필요합니다"}), 400
         
         # 코사인 유사도 기반 추천 생성
-        recommended_articles = get_title_based_recommendations(article_id, articles_data, word2vec_model)
+        recommended_articles = get_text_based_recommendations(article_id, articles_data, sentence_model)
         
         # 결과를 제목과 유사도 점수로 변환
         recommendations = []

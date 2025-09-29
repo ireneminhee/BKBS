@@ -17,12 +17,24 @@ if "initial_statement_done" not in st.session_state:
 
 # 쿼리 매개변수에서 기사 데이터를 세션 상태에 저장
 query_params = st.query_params
-if query_params.get("article_id") and query_params.get("title") and query_params.get("text"):
+print("=" * 80)
+print("쿼리 파라미터 디버그:")
+print("=" * 80)
+print(f"query_params: {query_params}")
+print(f"article_id: {query_params.get('article_id')}")
+print(f"title: {query_params.get('title')}")
+print(f"content: {query_params.get('content')}")
+print("=" * 80)
+
+if query_params.get("article_id") and query_params.get("title") and query_params.get("content"):
     st.session_state["article"] = {
         "id": query_params.get("article_id"),
         "title": query_params.get("title"),
-        "text": query_params.get("text")
+        "content": query_params.get("content")
     }
+    print("기사 정보가 세션 상태에 저장되었습니다.")
+else:
+    print("기사 정보가 세션 상태에 저장되지 않았습니다.")
 
 # 기사 정보 출력
 article = st.session_state.get("article")
@@ -59,29 +71,42 @@ def handle_user_input():
         # 챗봇 응답 생성
         with st.spinner("챗봇이 응답을 생성 중입니다..."):
             try:
-                # 첫 번째 질문에서만 기사 정보를 시스템 메시지로 저장
+                # 기사 정보를 매번 포함
                 article = st.session_state.get("article")
-                if article and len(st.session_state["conversation"]) == 1:
-                    system_message = f"현재 논의 중인 기사:\n기사 ID: {article['id']}\n기사 제목: {article['title']}\n기사 내용: {article['text']}"
-                    st.session_state["conversation"].insert(0, {"role": "system", "message": system_message})
+                print("=" * 80)
+                print("기사 정보 디버그:")
+                print("=" * 80)
+                print(f"article: {article}")
+                if article:
+                    print(f"기사 ID: {article['id']}")
+                    print(f"기사 제목: {article['title']}")
+                    print(f"기사 내용 길이: {len(article['content']) if article['content'] else 0}")
+                    print(f"기사 내용 (처음 200자): {article['content'][:200] if article['content'] else 'None'}")
+                print("=" * 80)
                 
-                # 기사 정보는 더 이상 매번 전달하지 않음
-                article_info = ""
+                article_context = ""
+                if article:
+                    article_context = f"""현재 논의 중인 기사:
+기사 ID: {article['id']}
+기사 제목: {article['title']}
+기사 내용: {article['content']}
+
+"""
                 
-                # 대화 기록을 맥락으로 구성 (시스템 메시지 포함)
+                # 대화 기록을 맥락으로 구성
                 conversation_context = ""
                 if len(st.session_state["conversation"]) > 1:
                     conversation_context = "대화 기록:\n"
-                    # 시스템 메시지부터 현재 질문 전까지 모든 대화 포함
+                    # 현재 질문 전까지 모든 대화 포함
                     for turn in st.session_state["conversation"][:-1]:  # 현재 질문 제외
-                        if turn["role"] == "system":
-                            conversation_context += f"[시스템]: {turn['message']}\n\n"
-                        else:
-                            role = "사용자" if turn["role"] == "user" else "AI"
-                            conversation_context += f"{role}: {turn['message']}\n"
+                        role = "사용자" if turn["role"] == "user" else "AI"
+                        conversation_context += f"{role}: {turn['message']}\n"
                 
-                # 전체 맥락 구성
-                full_context = conversation_context.strip()
+                # 전체 맥락 구성 (기사 정보 + 대화 기록)
+                if conversation_context:
+                    full_context = f"{article_context}{conversation_context}".strip()
+                else:
+                    full_context = article_context.strip()
                 
                 chatbot_reply = chatgpt_response(
                     context=full_context,

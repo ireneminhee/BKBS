@@ -15,13 +15,23 @@ def chatgpt_response(context, query):
     messages = [
         {
             "role": "system",
-            "content": "당신은 사용자와 반대 입장에서 토론을 진행하는 AI입니다. 논리적이고 명확하게 의견을 제시하세요. 만약 사용자가 질문을 한다면, 친절하게 대답해주는 비서가 되세요."
+            "content": f"당신은 사용자와 반대 입장에서 토론을 진행하는 AI입니다. 논리적이고 명확하게 의견을 제시하세요. 만약 사용자가 질문을 한다면, 친절하게 대답해주는 비서가 되세요.\n\n{context}"
         },
         {
             "role": "user",
-            "content": f"상황: {context}\n발언: {query}"
+            "content": query
         }
     ]
+    
+    # 프롬프트 내용 출력 (디버깅용)
+    print("=" * 80)
+    print("챗봇에게 보내는 프롬프트:")
+    print("=" * 80)
+    for i, message in enumerate(messages):
+        print(f"[{message['role'].upper()}]:")
+        print(message['content'])
+        print("-" * 40)
+    print("=" * 80)
     try:
         # ChatGPT API 호출
         response = openai.ChatCompletion.create(

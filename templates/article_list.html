@@ -50,7 +50,7 @@
             {% for article in articles %}
             <li class="article-item">
                 <h3><a href="{{ url_for('article', article_id=article.id) }}" class="article-title">{{ article.title }}</a></h3>
-                <p class="article-excerpt">{{ article.text[:150] }}...</p> <!-- 첫 150자만 표시하고 ... 추가 -->
+                <p class="article-excerpt">{{ article.content[:150] }}...</p> <!-- 첫 150자만 표시하고 ... 추가 -->
             </li>
             {% endfor %}
         </ul>
