@@ -61,7 +61,7 @@ def run_streamlit():
 
 # CSV 파일에서 데이터 읽기
 def load_articles():
-    df = pd.read_csv('data/news_data_1.csv')[:10]  # 데이터 파일 읽기
+    df = pd.read_csv('data/news_data_3.csv') # 데이터 파일 읽기
     # processed_text 컬럼 동적 생성 (title + content)
     articles = []
 

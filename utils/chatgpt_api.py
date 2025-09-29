@@ -23,6 +23,14 @@ def chatgpt_response(context, query):
         }
     ]
 
+    # 챗봇 프롬프트를 터미널에 출력
+    print("=" * 80)
+    print("🤖 챗봇 프롬프트:")
+    print("=" * 80)
+    print(f"시스템 메시지: {messages[0]['content']}")
+    print("-" * 80)
+    print(f"사용자 메시지: {messages[1]['content']}")
+    print("=" * 80)
     
     try:
         # ChatGPT API 호출
@@ -33,7 +41,18 @@ def chatgpt_response(context, query):
             temperature=0.7  # 창의성 조절
         )
         # 응답 반환
-        return response["choices"][0]["message"]["content"].strip()
+        chatbot_reply = response["choices"][0]["message"]["content"].strip()
+        
+        # 챗봇 응답을 터미널에 출력
+        print("=" * 80)
+        print("🤖 챗봇 응답:")
+        print("=" * 80)
+        print(chatbot_reply)
+        print("=" * 80)
+        
+        return chatbot_reply
     except Exception as e:
         # 에러 메시지 반환
-        return f"ChatGPT API 호출 실패: {str(e)}"
+        error_msg = f"ChatGPT API 호출 실패: {str(e)}"
+        print(f"❌ 챗봇 오류: {error_msg}")
+        return error_msg
