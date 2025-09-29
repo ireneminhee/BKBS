@@ -17,24 +17,12 @@ if "initial_statement_done" not in st.session_state:
 
 # 쿼리 매개변수에서 기사 데이터를 세션 상태에 저장
 query_params = st.query_params
-print("=" * 80)
-print("쿼리 파라미터 디버그:")
-print("=" * 80)
-print(f"query_params: {query_params}")
-print(f"article_id: {query_params.get('article_id')}")
-print(f"title: {query_params.get('title')}")
-print(f"content: {query_params.get('content')}")
-print("=" * 80)
-
-if query_params.get("article_id") and query_params.get("title") and query_params.get("content"):
+if query_params.get("article_id") and query_params.get("title") and query_params.get("text"):
     st.session_state["article"] = {
         "id": query_params.get("article_id"),
         "title": query_params.get("title"),
-        "content": query_params.get("content")
+        "text": query_params.get("text")
     }
-    print("기사 정보가 세션 상태에 저장되었습니다.")
-else:
-    print("기사 정보가 세션 상태에 저장되지 않았습니다.")
 
 # 기사 정보 출력
 article = st.session_state.get("article")
@@ -73,23 +61,12 @@ def handle_user_input():
             try:
                 # 기사 정보를 매번 포함
                 article = st.session_state.get("article")
-                print("=" * 80)
-                print("기사 정보 디버그:")
-                print("=" * 80)
-                print(f"article: {article}")
-                if article:
-                    print(f"기사 ID: {article['id']}")
-                    print(f"기사 제목: {article['title']}")
-                    print(f"기사 내용 길이: {len(article['content']) if article['content'] else 0}")
-                    print(f"기사 내용 (처음 200자): {article['content'][:200] if article['content'] else 'None'}")
-                print("=" * 80)
-                
                 article_context = ""
                 if article:
                     article_context = f"""현재 논의 중인 기사:
 기사 ID: {article['id']}
 기사 제목: {article['title']}
-기사 내용: {article['content']}
+기사 내용: {article['text']}
 
 """
                 

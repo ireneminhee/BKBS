@@ -22,16 +22,8 @@ def chatgpt_response(context, query):
             "content": query
         }
     ]
+
     
-    # 프롬프트 내용 출력 (디버깅용)
-    print("=" * 80)
-    print("챗봇에게 보내는 프롬프트:")
-    print("=" * 80)
-    for i, message in enumerate(messages):
-        print(f"[{message['role'].upper()}]:")
-        print(message['content'])
-        print("-" * 40)
-    print("=" * 80)
     try:
         # ChatGPT API 호출
         response = openai.ChatCompletion.create(

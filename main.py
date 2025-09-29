@@ -61,7 +61,7 @@ def run_streamlit():
 
 # CSV 파일에서 데이터 읽기
 def load_articles():
-    df = pd.read_csv('data/news_data_2.csv')  # 데이터 파일 읽기
+    df = pd.read_csv('data/news_data_1.csv')[:10]  # 데이터 파일 읽기
     # processed_text 컬럼 동적 생성 (title + content)
     articles = []
 
@@ -73,7 +73,8 @@ def load_articles():
             'journalist': row['journalist'],
             'source': row['source'],
             'title': row['title'],
-            'content': row['content']
+            'text': row['text'],
+            'preprocessed_text': row['preprocessed_text']
         }
         articles.append(article)
 
@@ -95,9 +96,9 @@ def get_text_embeddings(articles_data, sentence_model):
     # 모든 기사의 텍스트를 리스트로 추출
     texts = []
     for article in articles_data:
-        # title + content 결합
-        combined_text = article['title'] + " " + article['content']
-        texts.append(combined_text)
+        # title + text 결합
+        preprocessed_text = article['title'] + " " + article['text']
+        texts.append(preprocessed_text)
     
     # SentenceTransformer로 임베딩 생성
     embeddings = sentence_model.encode(texts, convert_to_tensor=False)
@@ -117,7 +118,7 @@ def get_text_based_recommendations(clicked_article_id, articles_data, sentence_m
         return []  # 클릭한 기사를 찾을 수 없으면 빈 리스트 반환
 
     # 클릭한 기사의 텍스트 임베딩 계산
-    clicked_text = clicked_article['title'] + " " + clicked_article['content']
+    clicked_text = clicked_article['title'] + " " + clicked_article['text']
     clicked_embedding = sentence_model.encode([clicked_text], convert_to_tensor=False)
 
     # 모든 기사의 텍스트 임베딩 계산
@@ -166,25 +167,27 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
         
         articles_info = ""
         for i, article in enumerate(sample_articles):
-            body = article.get('content', '').replace('\n', ' ') #토큰절약을 위해
+            body = article.get('text', '').replace('\n', ' ') #토큰절약을 위해
             articles_info += f"{article['id']}: {article['title']} | 내용: {body}\n"
         
-        # 현재 기사 정보 추가
-        current_article_info = ""
+        # 현재 기사 정보 가져오기
+        current_article = None
         if current_article_id:
             current_article = next((a for a in articles_data if str(a['id']) == str(current_article_id)), None)
-            if current_article:
-                current_body = current_article.get('content', '').replace('\n', ' ')
-                current_article_info = f"""
-현재 논의 중인 기사:
+        
+        current_article_info = ""
+        if current_article:
+            # 백슬래시 문제 해결을 위해 변수에 저장
+            article_text = current_article['text'].replace('\n', ' ')
+            current_article_info = f"""
+현재 기사:
 제목: {current_article['title']}
-내용: {current_body}
+내용: {article_text}
 """
-
+        
         # AI에게 추천 요청 (대화 기록 활용)
-        prompt = f"""토론 기반 뉴스 추천 엔진입니다.
+        prompt = f"""토론 기반 뉴스 추천 엔진입니다.{current_article_info}
 
-{current_article_info}
 토론: {conversation_text}
 
 사용 가능한 기사:
@@ -205,9 +208,9 @@ http://localhost:5002/article/A - 추천 이유
 http://localhost:5002/article/B - 추천 이유
 """
         
-        # 프롬프트 내용 출력 (디버깅용)
+        # 프롬프트 내용을 터미널에 출력
         print("=" * 80)
-        print("GPT에게 보내는 프롬프트:")
+        print("🤖 AI 추천 프롬프트:")
         print("=" * 80)
         print(prompt)
         print("=" * 80)
@@ -223,6 +226,7 @@ http://localhost:5002/article/B - 추천 이유
         )
         
         ai_recommendation = response['choices'][0]['message']['content'].strip()
+        
         return ai_recommendation
         
     except Exception as e:

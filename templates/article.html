@@ -51,7 +51,7 @@
             <div class="col-lg-8">
                 <section class="article-body">
                     <h2>기사 본문</h2>
-                    <p>{{ article.content }}</p>
+                    <p>{{ article.text }}</p>
                 </section>
             </div>
 
@@ -134,7 +134,7 @@
             <div class="col-12">
                 <section class="ai-discussion">
                     <h2>토론 챗봇</h2>
-                    <iframe src="http://localhost:8501?article_id={{ article.id }}&title={{ article.title }}&content={{ article.content }}" width="100%" height="600px"
+                    <iframe src="http://localhost:8501?article_id={{ article.id }}&title={{ article.title }}&text={{ article.text }}" width="100%" height="600px"
                         style="border: none; border-radius: 10px; overflow: hidden; background-color: white; color: black;"></iframe>
                 </section>
             </div>
