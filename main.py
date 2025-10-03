@@ -135,8 +135,8 @@ def get_text_based_recommendations(clicked_article_id, articles_data, sentence_m
         reverse=True
     )
 
-    # 상위 5개 기사를 추천
-    return recommended_articles[:5]
+    # 상위 10개 기사를 추천
+    return recommended_articles[:10]
 
 
 # 대화 기록을 바탕으로 한 AI 추천 함수
@@ -194,7 +194,7 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
 사용 가능한 기사:
 {articles_info}
 
-현재 기사와 토론 맥락을 고려하여 관련 기사 5개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
+현재 기사와 토론 맥락을 고려하여 관련 기사 10개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
 
 형식:
 1. 제목 (ID: X)
@@ -207,6 +207,16 @@ http://localhost:5002/article/Z - 추천 이유
 http://localhost:5002/article/A - 추천 이유
 5. 제목 (ID: B)
 http://localhost:5002/article/B - 추천 이유
+6. 제목 (ID: C)
+http://localhost:5002/article/C - 추천 이유
+7. 제목 (ID: D)
+http://localhost:5002/article/D - 추천 이유
+8. 제목 (ID: E)
+http://localhost:5002/article/E - 추천 이유
+9. 제목 (ID: F)
+http://localhost:5002/article/F - 추천 이유
+10. 제목 (ID: G)
+http://localhost:5002/article/G - 추천 이유
 """
         
         # 프롬프트 내용을 터미널에 출력
