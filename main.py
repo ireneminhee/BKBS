@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # from konlpy.tag import Okt  # 사용하지 않음
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from utils.evaluation import aggregate_diversity_report
 
 app = Flask(__name__)
 
@@ -61,7 +62,7 @@ def run_streamlit():
 
 # CSV 파일에서 데이터 읽기
 def load_articles():
-    df = pd.read_csv('data/news_data_3.csv') # 데이터 파일 읽기
+    df = pd.read_csv('./data/news_data_1.csv') # 데이터 파일 읽기
     # processed_text 컬럼 동적 생성 (title + content)
     articles = []
 
@@ -233,6 +234,104 @@ http://localhost:5002/article/B - 추천 이유
         return f"AI 추천 생성 중 오류 발생: {str(e)}"
 
 
+# AI 추천 결과에서 기사 ID들을 추출하는 함수
+def parse_ai_recommendation_ids(ai_recommendation_text):
+    """
+    AI 추천 텍스트에서 추천된 기사의 ID들을 추출
+    Streamlit에서 생성된 하이퍼링크에서 ID 추출
+    """
+    import re
+    
+    found_ids = set()
+    
+    # Streamlit에서 생성된 하이퍼링크 패턴: [제목](http://localhost:5002/article/ID) - 설명
+    # 또는 URL 패턴: http://localhost:5002/article/ID
+    id_patterns = [
+        r'\[.*?\]\(http://localhost:5002/article/(\d+)\)',  # 마크다운 링크 패턴
+        r'http://localhost:5002/article/(\d+)'  # URL 패턴
+    ]
+    
+    for pattern in id_patterns:
+        matches = re.findall(pattern, ai_recommendation_text)
+        for match in matches:
+            found_ids.add(int(match))
+    
+    # 디버깅 로그
+    print(f"추출된 기사 IDs: {list(found_ids)}")
+    
+    # 만약 링크에서 ID를 찾지 못했다면 원본 AI 추천 텍스트에서 URL 패턴 다시 확인
+    if not found_ids:
+        # 원본 텍스트에서 직접 URL 패턴 찾기
+        url_pattern = r'http://localhost:5002/article/(\d+)'
+        url_matches = re.findall(url_pattern, ai_recommendation_text)
+        # 순서를 유지하기 위해 set 대신 list 사용
+        for match in url_matches:
+            found_ids.add(int(match))
+        print(f"URL 패턴으로 재추출된 IDs: {list(found_ids)}")
+    
+    # 순서 유지를 위해 발견된 순서대로 반환 (첫 번째 발견 순서)
+    final_ids = []
+    url_pattern = r'http://localhost:5002/article/(\d+)'
+    url_matches = re.findall(url_pattern, ai_recommendation_text)
+    for match in url_matches:
+        if int(match) not in final_ids:
+            final_ids.append(int(match))
+    return final_ids if final_ids else list(found_ids)
+
+
+# AI 추천 기사들의 diversity metrics을 계산하는 함수
+def calculate_ai_recommendation_diversity(recommendation_ids, articles_data, sentence_model):
+    """
+    AI 추천 기사들의 diversity metrics 계산
+    """
+    try:
+        if len(recommendation_ids) < 2:
+            return {"error": "추천된 기사가 2개 미만입니다. Diversity 계산을 위해 최소 2개 이상 필요합니다."}
+        
+        # 추천된 기사들 찾기
+        recommended_articles = []
+        for article in articles_data:
+            if article['id'] in recommendation_ids:
+                recommended_articles.append(article)
+        
+        if len(recommended_articles) < 2:
+            return {"error": "추천된 기사를 데이터에서 찾을 수 없습니다."}
+        
+        # DataFrame 생성 (AI 추천은 모든 기사를 하나의 seed로 처리)
+        import pandas as pd
+        df_data = []
+        for article in recommended_articles:
+            df_data.append({
+                'seed_article_id': 'ai_recommendation_group',  # 모든 AI 추천을 하나의 그룹으로 처리
+                'title': article['title'],
+                'context': article['text'],
+                'source': article.get('source', 'Unknown')  # source 컬럼이 없다면 기본값
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # diversity metrics 계산 (AI 추천 그룹용)
+
+        diversity_report = aggregate_diversity_report(df, sentence_model)
+        
+        # JSON 직렬화 가능한 형태로 변환 (DataFrame 제외)
+        json_safe_report = {
+            'diversity': diversity_report['diversity'],
+            'cgi': diversity_report['cgi'],
+            'per_seed_summary': {
+                'total_seeds': len(diversity_report['per_seed_df']),
+                'avg_diversity': float(diversity_report['per_seed_df']['diversity'].mean()),
+                'avg_cgi': float(diversity_report['per_seed_df']['cgi'].mean()),
+                'recommendation_counts': diversity_report['per_seed_df']['n_recommendations'].tolist()
+            }
+        }
+        
+        return json_safe_report
+        
+    except Exception as e:
+        return {"error": f"Diversity 계산 중 오류 발생: {str(e)}"}
+
+
 # 주요 단어의 의미를 GPT API를 이용해 가져오는 함수
 def get_word_definitions(keywords):
     word_definitions = {}
@@ -304,15 +403,43 @@ def article(article_id):
             search_definition = get_word_definitions([search_query]).get(search_query)
             search_word = search_query  # 검색된 단어 저장
 
-    # 클릭한 기사와 유사한 기사 추천하기 (요약 기반 추천 시스템 사용)
+    # 클릭한 기사와 유사한 기사 추천하기 
     try:
         recommended_articles = get_text_based_recommendations(article_id, articles_data, sentence_model)
+        
+        # 추천 결과 DataFrame 생성
+        df_recs = pd.DataFrame([{
+            'seed_article_id': article_id,
+            'title': articles_data[idx]['title'],
+            'context': articles_data[idx]['text'],
+            'source': articles_data[idx]['source'],
+            'score': float(score)
+        } for idx, score in recommended_articles])
+        
+        # diversity_metrics 계산
+        diversity_report = aggregate_diversity_report(df_recs, sentence_model)
+
+        diversity_metrics = {
+            'diversity_mean': diversity_report['diversity']['mean'],
+            'diversity_std': diversity_report['diversity']['std'],
+            'diversity_ci_low': diversity_report['diversity']['ci_low'],
+            'diversity_ci_high': diversity_report['diversity']['ci_high'],
+            'cgi_mean': diversity_report['cgi']['mean'],
+            'cgi_std': diversity_report['cgi']['std'],
+            'cgi_ci_low': diversity_report['cgi']['ci_low'],
+            'cgi_ci_high': diversity_report['cgi']['ci_high'],
+            'avg_similarity': round(df_recs['score'].mean(), 4)
+        }
+
     except Exception as e:
         print(f"추천 시스템 에러: {e}")
         recommended_articles = []
 
     return render_template('article.html', article=article, word_definitions=word_definitions,
-                           summary=summary, search_definition=search_definition, search_word=search_word, recommended_articles=recommended_articles, articles=articles_data, image_url=image_url)
+                           summary=summary, search_definition=search_definition, 
+                           search_word=search_word, recommended_articles=recommended_articles, 
+                           articles=articles_data, image_url=image_url,
+                           diversity_metrics=diversity_metrics)
 
 
 @app.route('/get_ai_recommendations', methods=['POST'])
@@ -332,6 +459,36 @@ def get_ai_recommendations():
         )
         
         return jsonify({"recommendation": ai_recommendation})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/get_ai_diversity_metrics', methods=['POST'])
+def get_ai_diversity_metrics():
+    """AI 추천 결과의 diversity metrics를 계산하는 API"""
+    try:
+        data = request.get_json()
+        ai_recommendation_text = data.get('ai_recommendation', '')
+        
+        if not ai_recommendation_text:
+            return jsonify({"error": "AI 추천 결과가 없습니다"}), 400
+        
+        # AI 추천 결과에서 기사 ID 추출
+        recommendation_ids = parse_ai_recommendation_ids(ai_recommendation_text)
+        
+        if not recommendation_ids:
+            return jsonify({"error": "추천 결과에서 기사 ID를 찾을 수 없습니다"}), 400
+        
+        # diversity metrics 계산
+        diversity_report = calculate_ai_recommendation_diversity(
+            recommendation_ids, articles_data, sentence_model
+        )
+        
+        # 결과에 추출된 ID 추가
+        diversity_report['extracted_ids'] = recommendation_ids
+        
+        return jsonify(diversity_report)
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500

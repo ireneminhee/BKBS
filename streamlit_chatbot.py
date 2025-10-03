@@ -201,6 +201,56 @@ if "ai_recommendation" in st.session_state:
     recommendation_with_links = '\n'.join(processed_lines)
     
     st.markdown(recommendation_with_links)
+    
+    # Diversity Metrics 계산 및 표시
+    if st.button("📊 추천 다양성 분석", help="추천된 기사들의 다양성을 분석합니다"):
+        with st.spinner("다양성 메트릭스를 계산 중..."):
+            try:
+                # 원본 추천 텍스트 사용 (처리된 링크가 아닌 원본)
+                raw_recommendation = st.session_state.get("ai_recommendation_raw", "")
+                if not raw_recommendation:
+                    raw_recommendation = recommendation_text  # 백업용
+                
+                # Flask 서버의 diversity metrics API 호출 (타임아웃 설정)
+                response = requests.post("http://localhost:5002/get_ai_diversity_metrics", 
+                                       json={"ai_recommendation": raw_recommendation},
+                                       timeout=30)  # 30초 타임아웃 설정
+                
+                if response.status_code == 200:
+                    diversity_data = response.json()
+                    
+                    if "error" not in diversity_data:
+                        
+                        # 디버깅 정보 (테스트용)
+                        extracted_ids = diversity_data.get('extracted_ids', [])
+                        st.write(f"**추출된 기사 IDs:** {extracted_ids}")
+                        
+                        # 텍스트 기반 추천과 동일한 형식으로 표시
+                        diversity_info = diversity_data.get('diversity', {})
+                        cgi_info = diversity_data.get('cgi', {})
+                        
+                        diversity_score = diversity_info.get('mean', 0)
+                        cgi_score = cgi_info.get('mean', 0)
+                        
+                        st.write(f"**AI 추천 다양성 분석:**")
+                        st.write(f"다양성: {diversity_score:.3f} | CGI: {cgi_score:.3f}")
+                        
+                    else:
+                        st.error(f"다양성 계산 오류: {diversity_data['error']}")
+                        # 디버깅 정보 표시
+                        st.write("**디버깅 정보:**")
+                        st.write(f"- 추출된 기사 수: {len(diversity_data.get('extracted_ids', []))}")
+                        st.write(f"- 추출된 기사 IDs: {diversity_data.get('extracted_ids', [])}")
+                else:
+                    st.error(f"다양성 메트릭스 계산 실패 (HTTP {response.status_code})")
+                    try:
+                        error_data = response.json()
+                        st.write(f"오류 내용: {error_data}")
+                    except:
+                        st.write(f"오류 응답: {response.text}")
+                    
+            except Exception as e:
+                st.error(f"다양성 분석 실패: {e}")
 
 
 
