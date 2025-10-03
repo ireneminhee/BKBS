@@ -14,21 +14,33 @@ def diversity_score(recommend_articles, model):
     n = len(sim_matrix)
     upper = sim_matrix[np.triu_indices(n, k=1)]
     avg_sim = np.mean(upper) if len(upper) > 0 else 0.0
+    avg_sim = round(avg_sim, 4)  # 평균 유사도도 반올림
     return float(round(1 - avg_sim, 4))
 
 
 def cgi_score(recommend_articles):
     publisher_list = recommend_articles['source'].tolist()
+    print(f"CGI 디버깅: publisher_list = {publisher_list}")
+    
     if len(publisher_list) < 2:
+        print(f"CGI 디버깅: 기사 수 부족 ({len(publisher_list)}개)")
         return 0.0
+    
     counts = np.array([publisher_list.count(p) for p in set(publisher_list)])
+    print(f"CGI 디버깅: 출처별 카운트 = {counts}")
+    
     counts = np.sort(counts)
     n = len(counts)
     cum_counts = np.cumsum(counts)
     S_n = cum_counts[-1]
     numerator = 2 * np.sum(cum_counts[:-1])
     denominator = n * S_n - S_n
+    
+    print(f"CGI 디버깅: n={n}, S_n={S_n}, numerator={numerator}, denom={denominator}")
+    
     gini = numerator / denominator if denominator != 0 else 0.0
+    print(f"CGI 디버깅: gini={gini}, CGI={1-gini}")
+    
     return float(round(1 - gini, 4))
 
 

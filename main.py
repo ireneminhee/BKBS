@@ -311,8 +311,13 @@ def calculate_ai_recommendation_diversity(recommendation_ids, articles_data, sen
         df = pd.DataFrame(df_data)
         
         # diversity metrics 계산 (AI 추천 그룹용)
-
+        print("=== AI 추천 다양성 분석 시작 ===")
+        print(f"추천 기사 수: {len(df)}")
+        print(f"추천 기사 출처들: {df['source'].tolist()}")
+        
         diversity_report = aggregate_diversity_report(df, sentence_model)
+        
+        print("=== AI 추천 다양성 분석 종료 ===\n")
         
         # JSON 직렬화 가능한 형태로 변환 (DataFrame 제외)
         json_safe_report = {
@@ -413,11 +418,19 @@ def article(article_id):
             'title': articles_data[idx]['title'],
             'context': articles_data[idx]['text'],
             'source': articles_data[idx]['source'],
+            'article_id': articles_data[idx]['id'],  # 실제 기사 ID 추가
             'score': float(score)
         } for idx, score in recommended_articles])
         
         # diversity_metrics 계산
+        print("=== 텍스트 기반 추천 다양성 분석 시작 ===")
+        print(f"추천 기사 수: {len(df_recs)}")
+        print(f"추천 기사 ID들: {df_recs['article_id'].tolist()}")
+        print(f"추천 기사 출처들: {df_recs['source'].tolist()}")
+        
         diversity_report = aggregate_diversity_report(df_recs, sentence_model)
+        
+        print("=== 텍스트 기반 추천 다양성 분석 종료 ===\n")
 
         diversity_metrics = {
             'diversity_mean': diversity_report['diversity']['mean'],
@@ -428,7 +441,7 @@ def article(article_id):
             'cgi_std': diversity_report['cgi']['std'],
             'cgi_ci_low': diversity_report['cgi']['ci_low'],
             'cgi_ci_high': diversity_report['cgi']['ci_high'],
-            'avg_similarity': round(df_recs['score'].mean(), 4)
+            'avg_similarity': round(1 - diversity_report['diversity']['mean'], 4)  # diversity 계산과 정확히 일치
         }
 
     except Exception as e:
