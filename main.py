@@ -107,7 +107,6 @@ def get_text_embeddings(articles_data, sentence_model):
     return embeddings
 
 
-
 def get_text_based_recommendations(clicked_article_id, articles_data, sentence_model):
     """
     SentenceTransformer 기반 텍스트 추천 시스템
@@ -135,8 +134,7 @@ def get_text_based_recommendations(clicked_article_id, articles_data, sentence_m
         reverse=True
     )
 
-    # 상위 10개 기사를 추천
-    return recommended_articles[:10]
+    return recommended_articles[:5]
 
 
 # 대화 기록을 바탕으로 한 AI 추천 함수
@@ -194,12 +192,12 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
 사용 가능한 기사:
 {articles_info}
 
-현재 기사와 토론 맥락을 고려하여 관련 기사 10개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
+현재 기사와 토론 맥락을 고려하여 관련 기사 5개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
 
 형식:
 1. 제목 (ID: X)
 http://localhost:5002/article/X - 추천 이유
-2. 제목 (ID: Y)  
+2. 제목 (ID: Y)
 http://localhost:5002/article/Y - 추천 이유
 3. 제목 (ID: Z)
 http://localhost:5002/article/Z - 추천 이유
@@ -207,16 +205,6 @@ http://localhost:5002/article/Z - 추천 이유
 http://localhost:5002/article/A - 추천 이유
 5. 제목 (ID: B)
 http://localhost:5002/article/B - 추천 이유
-6. 제목 (ID: C)
-http://localhost:5002/article/C - 추천 이유
-7. 제목 (ID: D)
-http://localhost:5002/article/D - 추천 이유
-8. 제목 (ID: E)
-http://localhost:5002/article/E - 추천 이유
-9. 제목 (ID: F)
-http://localhost:5002/article/F - 추천 이유
-10. 제목 (ID: G)
-http://localhost:5002/article/G - 추천 이유
 """
         
         # 프롬프트 내용을 터미널에 출력
@@ -331,11 +319,11 @@ def calculate_ai_recommendation_diversity(recommendation_ids, articles_data, sen
         
         # JSON 직렬화 가능한 형태로 변환 (DataFrame 제외)
         json_safe_report = {
-            'diversity': diversity_report['diversity'],
+            'ild': diversity_report['ild'],
             'cgi': diversity_report['cgi'],
             'per_seed_summary': {
                 'total_seeds': len(diversity_report['per_seed_df']),
-                'avg_diversity': float(diversity_report['per_seed_df']['diversity'].mean()),
+                'avg_ild': float(diversity_report['per_seed_df']['ild'].mean()),
                 'avg_cgi': float(diversity_report['per_seed_df']['cgi'].mean()),
                 'recommendation_counts': diversity_report['per_seed_df']['n_recommendations'].tolist()
             }
@@ -443,15 +431,14 @@ def article(article_id):
         print("=== 텍스트 기반 추천 다양성 분석 종료 ===\n")
 
         diversity_metrics = {
-            'diversity_mean': diversity_report['diversity']['mean'],
-            'diversity_std': diversity_report['diversity']['std'],
-            'diversity_ci_low': diversity_report['diversity']['ci_low'],
-            'diversity_ci_high': diversity_report['diversity']['ci_high'],
-            'cgi_mean': diversity_report['cgi']['mean'],
-            'cgi_std': diversity_report['cgi']['std'],
-            'cgi_ci_low': diversity_report['cgi']['ci_low'],
-            'cgi_ci_high': diversity_report['cgi']['ci_high'],
-            'avg_similarity': round(1 - diversity_report['diversity']['mean'], 4)  # diversity 계산과 정확히 일치
+            'ILD_mean': diversity_report['ild']['mean'],
+            'ILD_std': diversity_report['ild']['std'],
+            'ILD_ci_low': diversity_report['ild']['ci_low'],
+            'ILD_ci_high': diversity_report['ild']['ci_high'],
+            'CGI_mean': diversity_report['cgi']['mean'],
+            'CGI_std': diversity_report['cgi']['std'],
+            'CGI_ci_low': diversity_report['cgi']['ci_low'],
+            'CGI_ci_high': diversity_report['cgi']['ci_high'],
         }
 
     except Exception as e:

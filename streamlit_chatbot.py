@@ -226,14 +226,14 @@ if "ai_recommendation" in st.session_state:
                         st.write(f"**추출된 기사 IDs:** {extracted_ids}")
                         
                         # 텍스트 기반 추천과 동일한 형식으로 표시
-                        diversity_info = diversity_data.get('diversity', {})
+                        ild_info = diversity_data.get('ild', {})
                         cgi_info = diversity_data.get('cgi', {})
                         
-                        diversity_score = diversity_info.get('mean', 0)
+                        ild_score = ild_info.get('mean', 0)
                         cgi_score = cgi_info.get('mean', 0)
                         
                         st.write(f"**AI 추천 다양성 분석:**")
-                        st.write(f"다양성: {diversity_score:.3f} | CGI: {cgi_score:.3f}")
+                        st.write(f"ILD: {ild_score:.3f} | CGI: {cgi_score:.3f}")
                         
                     else:
                         st.error(f"다양성 계산 오류: {diversity_data['error']}")
