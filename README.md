@@ -3,8 +3,7 @@
 똑똑해지고 싶은 모두를 위한 친절한 뉴스 플랫폼입니다.
 
 용어 통일
-content: 본문
-text = title + " " + "content"
+text: 본문
 date: 입력된 날짜
 
 ## 📊 사용 방법

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import openai
+from openai import OpenAI
 import pandas as pd
 import ast
 import subprocess
@@ -9,6 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from utils.evaluation import aggregate_diversity_report
+import base64
 
 app = Flask(__name__)
 
@@ -75,6 +77,7 @@ def load_articles():
             'source': row['source'],
             'title': row['title'],
             'text': row['text'],
+            'link': row['link'],  # 원본 링크 추가
             'preprocessed_text': row['preprocessed_text']
         }
         articles.append(article)
@@ -134,7 +137,7 @@ def get_text_based_recommendations(clicked_article_id, articles_data, sentence_m
         reverse=True
     )
 
-    return recommended_articles[:5]
+    return recommended_articles[:10]
 
 
 # 대화 기록을 바탕으로 한 AI 추천 함수
@@ -192,19 +195,29 @@ def get_conversation_based_recommendations(conversation_history, articles_data, 
 사용 가능한 기사:
 {articles_info}
 
-현재 기사와 토론 맥락을 고려하여 관련 기사 5개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
+현재 기사와 토론 맥락을 고려하여 관련 기사 10개를 추천하세요. 단 현재 논의 중인 기사는 제외해주세요.
 
 형식:
 1. 제목 (ID: X)
 http://localhost:5002/article/X - 추천 이유
 2. 제목 (ID: Y)
 http://localhost:5002/article/Y - 추천 이유
-3. 제목 (ID: Z)
+3. 제목 (ID: Z) 
 http://localhost:5002/article/Z - 추천 이유
 4. 제목 (ID: A)
 http://localhost:5002/article/A - 추천 이유
 5. 제목 (ID: B)
 http://localhost:5002/article/B - 추천 이유
+6. 제목 (ID: C)
+http://localhost:5002/article/C - 추천 이유
+7. 제목 (ID: D)
+http://localhost:5002/article/D - 추천 이유
+8. 제목 (ID: E)
+http://localhost:5002/article/E - 추천 이유
+9. 제목 (ID: F)
+http://localhost:5002/article/F - 추천 이유
+10. 제목 (ID: G)
+http://localhost:5002/article/G - 추천 이유
 """
         
         # 프롬프트 내용을 터미널에 출력
@@ -214,8 +227,9 @@ http://localhost:5002/article/B - 추천 이유
         print(prompt)
         print("=" * 80)
         
-        response = openai.ChatCompletion.create(
-            model="gpt-4.1",
+        client = OpenAI(api_key=openai.api_key)
+        response = client.chat.completions.create(
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "당신은 토론 기반 뉴스 추천 엔진입니다. 사용자의 토론 내용을 분석하여 제공된 실제 뉴스 데이터에서 토론을 심화할 수 있는 관련 기사들을 선택하여 추천해주세요."},
                 {"role": "user", "content": prompt}
@@ -224,7 +238,7 @@ http://localhost:5002/article/B - 추천 이유
             temperature=0.7
         )
         
-        ai_recommendation = response['choices'][0]['message']['content'].strip()
+        ai_recommendation = response.choices[0].message.content.strip()
         
         return ai_recommendation
         
@@ -338,9 +352,10 @@ def calculate_ai_recommendation_diversity(recommendation_ids, articles_data, sen
 # 주요 단어의 의미를 GPT API를 이용해 가져오는 함수
 def get_word_definitions(keywords):
     word_definitions = {}
+    client = OpenAI(api_key=openai.api_key)
     for word in keywords:
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",  # 올바른 모델 이름
                 messages=[
                     {"role": "system", "content": "단어의 정의를 한 줄로 간략하게 설명해줘"},
@@ -348,11 +363,77 @@ def get_word_definitions(keywords):
                 ],
                 max_tokens=100
             )
-            definition = response['choices'][0]['message']['content'].strip()
+            definition = response.choices[0].message.content.strip()
             word_definitions[word] = definition
         except Exception as e:
             word_definitions[word] = f"Error: {str(e)}"
     return word_definitions
+
+# 기사를 요약하는 함수
+def get_summary(content):
+    try:
+        if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
+            return "API 키가 설정되지 않았습니다. 환경 변수 OPENAI_API_KEY를 설정하거나 setup_api_key.sh를 실행하세요."
+        
+        client = OpenAI(api_key=openai.api_key)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # 올바른 모델 이름
+            messages=[
+                {"role": "system", "content": "너는 친절하게 답변해주는 비서야. 다음의 기사를 적절하게 한 문장으로 요약해줘."},
+                {"role": "user", "content": content}
+            ],
+            max_tokens=200
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"요약 생성 실패: {str(e)}"
+
+
+def generate_four_panel_comic(article_summary):
+    """
+    기사 요약을 바탕으로 네컷 만화를 생성하는 함수.
+    사용자가 한눈에 기사 내용을 파악할 수 있도록 시각적으로 표현합니다.
+
+    Returns:
+        str: 생성된 이미지의 URL (오류 시 에러 메시지 반환)
+    """
+    
+    # 네컷 만화 프롬프트 생성
+    prompt = f"""Create a 4-panel comic strip that visually tells the story from this news article summary: '{article_summary}'
+
+Panel structure:
+- Panel 1: Initial situation or context (what happened first)
+- Panel 2: Development or problem arising (what unfolded)
+- Panel 3: Key event or turning point (main incident)
+- Panel 4: Resolution or current status (how it ended or current state)
+
+Style requirements:
+- Clean, simple cartoon style
+- Each panel should be clearly distinct
+- Use expressive characters and clear visual storytelling
+- Professional news illustration style
+- High contrast and clear composition
+- Suitable for all audiences
+
+The comic should help readers quickly understand the main points of the news story through visual narrative."""
+
+    # OpenAI 클라이언트 초기화
+    client = OpenAI(api_key=openai.api_key)
+    
+    # 모델을 사용한 이미지 생성
+    try:
+        response = client.images.generate(
+            model="gpt-4.1",
+            prompt=prompt,
+            n=1,
+            size="1536x1024"
+        )
+        
+        # 이미지 URL 반환
+        return response.data[0].url
+            
+    except Exception as e:
+        return f"네컷 만화 생성 중 오류 발생: {str(e)}"
 
 
 #50개 로드
@@ -361,7 +442,7 @@ articles_data = load_articles()
 # SentenceTransformer 모델 로드
 sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# 요약 캐시 초기화 (성능 향상을 위해) - 제목 기반 추천으로 변경하여 비활성화
+# 요약 캐시 초기화 (성능 향상을 위해)
 # summary_cache = load_summary_cache()
 
 @app.route('/')
@@ -382,20 +463,26 @@ def article(article_id):
         return "Article not found", 404
 
     try:
-        # word_definitions = get_word_definitions(article['filtered_keywords'])  # 주요 단어 정의 가져오기 (주석처리)
+        # 키워드 정의 기능은 현재 비활성화 (filtered_keywords 컬럼이 없음)
         word_definitions = {}  # 단어 정의 비활성화 (빈 딕셔너리로 설정)
-        # summary = get_summary(article['text'])  # 기사 요약 가져오기 (제목 기반 추천으로 변경하여 비활성화)
-        summary = "제목 기반 추천 시스템으로 변경되어 요약 기능이 비활성화되었습니다."
         
-        # 4컷 만화 생성 함수 호출 (주석처리)
-        # image_url = generate_four_panel_comic(summary)
-        image_url = None
+        # 기사 요약 생성
+        summary = get_summary(article['text'])  # 기사 본문 기반 요약 가져오기
+        
+        # 4컷 만화 생성 함수 호출
+        image_url = generate_four_panel_comic(summary)
     except Exception as e:
         print(f"API 호출 에러: {e}")
         # API 호출 실패 시 기본값 사용
         word_definitions = {}  # 빈 딕셔너리로 설정
-        summary = "요약을 불러올 수 없습니다. API 키를 확인해주세요."
-        image_url = None
+        
+        # API 키 확인
+        if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
+            summary = "⚠️ OpenAI API 키가 설정되지 않았습니다. setup_api_key.sh를 실행하여 API 키를 설정해주세요."
+            image_url = None
+        else:
+            summary = f"요약 생성 중 오류가 발생했습니다: {str(e)}"
+            image_url = None
 
     search_definition = None
     search_word = None
