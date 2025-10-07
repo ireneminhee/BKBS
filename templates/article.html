@@ -112,12 +112,16 @@
                         <h3 style="color: #2c3e50; margin-bottom: 15px; font-size: 20px;">
                             <i class="fas fa-paint-brush" style="color: #e91e63; margin-right: 8px;"></i>기사 기반 네컷만화
                         </h3>
-                        {% if image_url %}
+                        {% if image_url and image_url.startswith('http') %}
                             <div style="text-align: center; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                                 <img src="{{ image_url }}" alt="AI Generated Comic" 
                                      style="width: 100%; max-width: 600px; height: auto; 
                                             border: 2px solid #ddd; border-radius: 12px; 
-                                            box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                            box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                <div style="display: none; padding: 20px; background-color: #f8d7da; border-radius: 8px; color: #721c24;">
+                                    <strong>이미지 로드 실패:</strong> {{ image_url[:100] }}...
+                                </div>
                                 <p style="margin-top: 15px; font-size: 14px; color: #666; font-weight: 500;">
                                     <i class="fas fa-robot" style="color: #e91e63; margin-right: 5px;"></i> AI가 생성한 네컷만화
                                 </p>

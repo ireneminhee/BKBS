@@ -398,6 +398,8 @@ def generate_four_panel_comic(article_summary):
         str: 생성된 이미지의 URL (오류 시 에러 메시지 반환)
     """
     
+    print(f"🎨 네컷만화 생성 시작 - 요약: {article_summary[:50]}...")
+    
     # 네컷 만화 프롬프트 생성
     prompt = f"""Create a 4-panel comic strip that visually tells the story from this news article summary: '{article_summary}'
 
@@ -409,31 +411,42 @@ Panel structure:
 
 Style requirements:
 - Clean, simple cartoon style
+- NO TEXT, NO SPEECH BUBBLES, NO WORDS anywhere in the image
 - Each panel should be clearly distinct
 - Use expressive characters and clear visual storytelling
 - Professional news illustration style
 - High contrast and clear composition
 - Suitable for all audiences
+- Pure visual storytelling without any written language
 
-The comic should help readers quickly understand the main points of the news story through visual narrative."""
+The comic should help readers quickly understand the main points of the news story through visual narrative only, without any text or words."""
 
     # OpenAI 클라이언트 초기화
     client = OpenAI(api_key=openai.api_key)
     
-    # 모델을 사용한 이미지 생성
+    # DALL-E 3 모델을 사용한 이미지 생성
     try:
+        print("🔄 DALL-E 3 API 호출 중...")
         response = client.images.generate(
-            model="gpt-4.1",
+            model="dall-e-3",
             prompt=prompt,
             n=1,
-            size="1536x1024"
+            size="1792x1024",
+            quality="hd",
+            style="natural"
         )
         
+        print("✅ 이미지 생성 성공!")
+        image_url = response.data[0].url
+        print(f"🖼️ 이미지 URL: {image_url[:50]}...")
+        
         # 이미지 URL 반환
-        return response.data[0].url
+        return image_url
             
     except Exception as e:
-        return f"네컷 만화 생성 중 오류 발생: {str(e)}"
+        error_msg = f"네컷 만화 생성 중 오류 발생: {str(e)}"
+        print(f"❌ {error_msg}")
+        return error_msg
 
 
 #50개 로드
@@ -467,12 +480,17 @@ def article(article_id):
         word_definitions = {}  # 단어 정의 비활성화 (빈 딕셔너리로 설정)
         
         # 기사 요약 생성
+        print("📝 기사 요약 생성 중...")
         summary = get_summary(article['text'])  # 기사 본문 기반 요약 가져오기
+        print(f"✅ 요약 생성 완료: {summary[:50]}...")
         
         # 4컷 만화 생성 함수 호출
+        print("🎨 네컷만화 생성 시작...")
         image_url = generate_four_panel_comic(summary)
+        print(f"🖼️ 이미지 URL 결과: {image_url[:50] if image_url else 'None'}...")
+        
     except Exception as e:
-        print(f"API 호출 에러: {e}")
+        print(f"❌ API 호출 에러: {e}")
         # API 호출 실패 시 기본값 사용
         word_definitions = {}  # 빈 딕셔너리로 설정
         
