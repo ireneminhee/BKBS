@@ -46,14 +46,22 @@
     </header>
 
     <section>
-        <ul class="article-list" style="list-style-type: none; padding-left: 0;">
-            {% for article in articles %}
-            <li class="article-item">
-                <h3><a href="{{ url_for('article', article_id=article.id) }}" class="article-title">{{ article.title }}</a></h3>
-                <p class="article-excerpt">{{ article.text[:150] }}...</p> <!-- 첫 150자만 표시하고 ... 추가 -->
-            </li>
-            {% endfor %}
-        </ul>
+        <div class="container">
+            <div class="row">
+                {% for article in articles %}
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="article-item" style="padding: 20px; background-color: #f8f9fa; border-radius: 12px; height: 100%;">
+                        <h3 style="margin-bottom: 15px;"><a href="{{ url_for('article', article_id=article.id) }}" class="article-title" style="color: #2c3e50; text-decoration: none; font-size: 18px;">{{ article.title }}</a></h3>
+                        <div class="article-meta" style="display: flex; flex-direction: column; gap: 8px; color: #6c757d; font-size: 14px;">
+                            <div><i class="fas fa-newspaper" style="margin-right: 8px;"></i><strong>출처:</strong> {{ article.source }}</div>
+                            <div><i class="fas fa-user" style="margin-right: 8px;"></i><strong>기자:</strong> {{ article.journalist }}</div>
+                            <div><i class="fas fa-calendar" style="margin-right: 8px;"></i><strong>날짜:</strong> {{ article.date }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </section>
 
     <!-- Footer-->
