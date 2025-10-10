@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 
 # OpenAI API 키 설정 (환경 변수에서 가져오거나 직접 설정)
 import os
@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # .env 파일 로드 (있는 경우)
 load_dotenv()
 
-openai.api_key = os.getenv("OPENAI_API_KEY", "YOUR_API_KEY_HERE")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_API_KEY_HERE"))
 
 def chatgpt_response(context, query):
 
@@ -34,14 +34,14 @@ def chatgpt_response(context, query):
     
     try:
         # ChatGPT API 호출
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # 사용할 모델
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # 사용할 모델
             messages=messages,
             max_tokens=300,  # 출력 토큰 제한
             temperature=0.7  # 창의성 조절
         )
         # 응답 반환
-        chatbot_reply = response["choices"][0]["message"]["content"].strip()
+        chatbot_reply = response.choices[0].message.content.strip()
         
         # 챗봇 응답을 터미널에 출력
         print("=" * 80)
