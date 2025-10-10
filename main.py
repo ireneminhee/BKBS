@@ -4,13 +4,9 @@ from openai import OpenAI
 import pandas as pd
 import ast
 import subprocess
-from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import cosine_similarity
-# from konlpy.tag import Okt  # 사용하지 않음
-import numpy as np
 from sentence_transformers import SentenceTransformer
 from utils.evaluation import aggregate_diversity_report
-import base64
 
 app = Flask(__name__)
 
