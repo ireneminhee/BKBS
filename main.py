@@ -268,12 +268,12 @@ http://localhost:5002/article/G - 추천 이유
         API_USAGE_TRACKER['ai_recommendation_calls'] += 1
         client = OpenAI(api_key=openai.api_key)
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "당신은 토론 기반 뉴스 추천 엔진입니다. 사용자의 토론 내용을 분석하여 제공된 실제 뉴스 데이터에서 토론을 심화할 수 있는 관련 기사들을 선택하여 추천해주세요."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=1000,
+            max_completion_tokens=1000,
             temperature=0.7
         )
         
