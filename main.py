@@ -396,6 +396,83 @@ def calculate_ai_recommendation_diversity(recommendation_ids, articles_data, sen
         return {"error": f"Diversity 계산 중 오류 발생: {str(e)}"}
 
 
+# 기사에서 주요 키워드를 추출하는 함수
+def extract_keywords_from_article(article_text):
+    """
+    기사 전문을 분석하여 주요 키워드를 추출하는 함수
+    
+    Args:
+        article_text (str): 기사 전문
+        
+    Returns:
+        list: 추출된 키워드 리스트
+    """
+    # API 기능이 비활성화된 경우
+    if not ENABLE_WORD_DEFINITIONS:
+        return []
+    
+    # 캐시에서 먼저 확인
+    cache_key = get_cache_key(article_text, "keywords")
+    if cache_key in word_definition_cache:
+        print(f"📋 캐시에서 키워드 로드")
+        return word_definition_cache[cache_key]
+    
+    try:
+        if not openai.api_key or openai.api_key == "YOUR_API_KEY_HERE":
+            return []
+        
+        API_USAGE_TRACKER['word_definition_calls'] += 1
+        client = OpenAI(api_key=openai.api_key)
+        
+        prompt = f"""다음 뉴스 기사에서 독자가 이해하기 어려울 수 있는 주요 키워드 5개를 추출해주세요.
+
+기사 내용:
+{article_text}
+
+요구사항:
+1. 전문 용어, 인명, 지명, 기관명, 정책명 등 독자가 이해하기 어려운 키워드 위주로 추출
+2. 정확히 5개의 키워드만 추출
+3. 각 키워드는 한 단어 또는 짧은 구문으로 구성
+4. JSON 배열 형태로만 응답 (예: ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"])
+
+응답 형식:
+["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"]"""
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "당신은 뉴스 기사 분석 전문가입니다. 기사에서 독자가 이해하기 어려운 주요 키워드를 정확히 추출해주세요."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=200,
+            temperature=0.3
+        )
+        
+        keywords_text = response.choices[0].message.content.strip()
+        print(f"🔤 키워드 추출 결과: {keywords_text}")
+        
+        # JSON 파싱 시도
+        try:
+            import json
+            keywords = json.loads(keywords_text)
+            if isinstance(keywords, list) and len(keywords) <= 5:
+                # 캐시에 저장
+                word_definition_cache[cache_key] = keywords
+                save_cache(word_definition_cache, WORD_DEFINITION_CACHE_FILE)
+                print(f"💾 키워드 캐시 저장: {keywords}")
+                return keywords
+            else:
+                print(f"⚠️ 키워드 형식 오류: {keywords}")
+                return []
+        except json.JSONDecodeError:
+            print(f"⚠️ JSON 파싱 실패: {keywords_text}")
+            return []
+            
+    except Exception as e:
+        print(f"❌ 키워드 추출 실패: {str(e)}")
+        return []
+
+
 # 주요 단어의 의미를 GPT API를 이용해 가져오는 함수
 def get_word_definitions(keywords):
     # API 기능이 비활성화된 경우
@@ -480,7 +557,7 @@ def generate_four_panel_comic(article_summary):
     사용자가 한눈에 기사 내용을 파악할 수 있도록 시각적으로 표현합니다.
 
     Returns:
-        str: 생성된 이미지의 URL (오류 시 에러 메시지 반환)
+        str: 생성된 이미지의 로컬 경로 또는 URL (오류 시 에러 메시지 반환)
     """
     
     # API 기능이 비활성화된 경우
@@ -536,13 +613,41 @@ The comic should help readers quickly understand the main points of the news sto
         image_url = response.data[0].url
         print(f"🖼️ 이미지 URL: {image_url[:50]}...")
         
-        # 캐시에 저장
-        comic_cache[cache_key] = image_url
+        # 이미지를 다운로드하여 로컬에 저장
+        import requests
+        import os
+        from datetime import datetime
+        
+        # static/img 디렉토리 생성 (없는 경우)
+        img_dir = "static/img"
+        if not os.path.exists(img_dir):
+            os.makedirs(img_dir)
+        
+        # 고유한 파일명 생성
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"comic_{cache_key[:8]}_{timestamp}.png"
+        local_path = os.path.join(img_dir, filename)
+        
+        # 이미지 다운로드
+        print("📥 이미지 다운로드 중...")
+        img_response = requests.get(image_url, timeout=30)
+        img_response.raise_for_status()
+        
+        # 로컬에 저장
+        with open(local_path, 'wb') as f:
+            f.write(img_response.content)
+        
+        # 웹에서 접근 가능한 경로로 변환
+        web_path = f"/static/img/{filename}"
+        print(f"💾 이미지 저장 완료: {web_path}")
+        
+        # 캐시에 웹 경로 저장
+        comic_cache[cache_key] = web_path
         save_cache(comic_cache, COMIC_CACHE_FILE)
         print(f"💾 네컷만화 캐시 저장")
         
-        # 이미지 URL 반환
-        return image_url
+        # 웹 경로 반환
+        return web_path
             
     except Exception as e:
         error_msg = f"네컷 만화 생성 중 오류 발생: {str(e)}"
@@ -589,10 +694,13 @@ def article(article_id):
         image_url = generate_four_panel_comic(summary)
         print(f"🖼️ 이미지 URL 결과: {image_url[:50] if image_url else 'None'}...")
         
-        # 주요 단어 정의 생성 (샘플 키워드 사용)
-        print("🔤 주요 단어 정의 생성 중...")
-        sample_keywords = ["정치", "경제", "사회", "기술", "환경"]  # 샘플 키워드
-        word_definitions = get_word_definitions(sample_keywords)
+        # 기사에서 키워드 추출 및 정의 생성
+        print("🔤 기사 키워드 추출 중...")
+        extracted_keywords = extract_keywords_from_article(article['text'])
+        print(f"✅ 키워드 추출 완료: {extracted_keywords}")
+        
+        print("📚 키워드 정의 생성 중...")
+        word_definitions = get_word_definitions(extracted_keywords)
         print(f"✅ 단어 정의 생성 완료: {len(word_definitions)}개")
         
     except Exception as e:

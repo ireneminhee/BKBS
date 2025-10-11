@@ -87,7 +87,7 @@
                             <!-- 주요 단어 섹션 -->
                             <div class="keywords-section" style="flex: 1;">
                                 <h3 style="color: #2c3e50; margin-bottom: 15px; font-size: 20px;">
-                                    <i class="fas fa-tags" style="color: #28a745; margin-right: 8px;"></i>주요 단어
+                                    <i class="fas fa-tags" style="color: #28a745; margin-right: 8px;"></i>기사 주요 키워드
                                 </h3>
                                 {% if word_definitions %}
                                     <div style="height: calc(100% - 50px); padding: 15px; background-color: #f8f9fa; border-radius: 12px; border-left: 4px solid #28a745;">
@@ -113,7 +113,7 @@
                                 <h3 style="color: #2c3e50; margin-bottom: 15px; font-size: 20px;">
                                     <i class="fas fa-paint-brush" style="color: #e91e63; margin-right: 8px;"></i>기사 기반 네컷만화
                                 </h3>
-                                {% if image_url and image_url.startswith('http') %}
+                                {% if image_url and (image_url.startswith('http') or image_url.startswith('/static/')) %}
                                     <div style="text-align: center; background-color: #f8f9fa; padding: 15px; border-radius: 12px; height: calc(100% - 50px); display: flex; flex-direction: column; justify-content: center; overflow: hidden;">
                                         <img src="{{ image_url }}" alt="AI Generated Comic" 
                                              style="width: 100%; max-width: 100%; height: auto; max-height: 100%; object-fit: contain;
