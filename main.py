@@ -368,13 +368,14 @@ def calculate_ai_recommendation_diversity(recommendation_ids, articles_data, sen
             })
         
         df = pd.DataFrame(df_data)
+        articles_df = pd.DataFrame(articles_data)
         
         # diversity metrics 계산 (AI 추천 그룹용)
         print("=== AI 추천 다양성 분석 시작 ===")
         print(f"추천 기사 수: {len(df)}")
         print(f"추천 기사 출처들: {df['source'].tolist()}")
         
-        diversity_report = aggregate_diversity_report(df, sentence_model)
+        diversity_report = aggregate_diversity_report(df, articles_df, sentence_model)
         
         print("=== AI 추천 다양성 분석 종료 ===\n")
         
@@ -728,6 +729,7 @@ def article(article_id):
     # 클릭한 기사와 유사한 기사 추천하기 
     try:
         recommended_articles = get_text_based_recommendations(article_id, articles_data, sentence_model)
+        articles_df = pd.DataFrame(articles_data)
         
         # 추천 결과 DataFrame 생성
         df_recs = pd.DataFrame([{
@@ -746,7 +748,7 @@ def article(article_id):
             print(f"추천 기사 ID들: {df_recs['article_id'].tolist()}")
             print(f"추천 기사 출처들: {df_recs['source'].tolist()}")
             
-            diversity_report = aggregate_diversity_report(df_recs, sentence_model)
+            diversity_report = aggregate_diversity_report(df_recs, articles_df, sentence_model)
             
             print("=== 텍스트 기반 추천 다양성 분석 종료 ===\n")
 
